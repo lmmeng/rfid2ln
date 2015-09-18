@@ -22,6 +22,10 @@ To connect the Arduino board to the Loconet (R) bus, use the LocoNet interface p
 
 The connections between the Arduino and the MFRC522 board are described in the code (and on MFRC522 library's site  at https://github.com/miguelbalboa/rfid).
 
+<a name="to-do"></a>
+<h2><a id="to-do" class="anchor" href="#to-do" aria-hidden="true"><span class="octicon octicon-link"></span></a>TO DO's</h2>
+- implement of answering to the Loconet Query command (similar to the LocoIO - http://users.telenet.be/deloof/page6.htmlLocoIO)
+- implement the (board) address change (similar to the LocoIO)
 <a name="user-content-license"></a>
 <h2><a id="user-content-license" class="anchor" href="#license" aria-hidden="true"><span class="octicon octicon-link"></span></a>License</h2>
 
