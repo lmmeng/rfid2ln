@@ -60,8 +60,10 @@ void setMessageHeader(void);
  * Initialize.
  */
 void setup() {
+#ifdef _SER_DEBUG
     Serial.begin(115200); // Initialize serial communications with the PC
     while (!Serial);    // Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4)
+#endif
 
     //initialize the LocoNet interface
     LocoNet.init();
@@ -108,7 +110,7 @@ void loop() {
   uint16_t uiDelayTime = 200;
 
   if ( mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){  
-     if(!delaying){
+     if(!delaying){   //Avoid to many/to fast reads of the same tag
 /*       
         // Show some details of the PICC (that is: the tag/card)
         Serial.print(F("Card UID:"));
@@ -153,7 +155,7 @@ void loop() {
   LnPacket = LocoNet.receive() ;
   if( LnPacket ) {
      uint8_t msgLen = getLnMsgSize(LnPacket);
-#if 0
+#ifdef _SER_DEBUG
      Serial.print(F("Loconet rec:"));
      dump_byte_array(LnPacket->data, getLnMsgSize(LnPacket)); //
      Serial.println();
@@ -163,9 +165,10 @@ void loop() {
      // directly with the library function or I should implement it 
      if(msgLen == 0x10){  //XFERmessage, check if it is for me. Used to change the address
         svStatus = sv.processMessage(LnPacket);
+#ifdef _SER_DEBUG
         Serial.print("LNSV processMessage - Status: ");
         Serial.println(svStatus);
-    
+#endif    
         deferredProcessingNeeded = (svStatus == SV_DEFERRED_PROCESSING_NEEDED);
      } //if(msgLen == 0x10)
   }
