@@ -15,7 +15,7 @@
  * Signal      Pin          Pin           Pin       Pin        Pin              Pin
  * -----------------------------------------------------------------------------------------
  * RST/Reset   RST          9             5         D9         RESET/ICSP-5     RST
- * SPI SS      SDA(SS)      10            53        D10        10               10
+ * SPI SS      SDA(SS)      10            53        D10        5                10
  * SPI MOSI    MOSI         11 / ICSP-4   51        D11        ICSP-4           16
  * SPI MISO    MISO         12 / ICSP-1   50        D12        ICSP-1           14
  * SPI SCK     SCK          13 / ICSP-3   52        D13        ICSP-3           15
@@ -40,7 +40,7 @@
 #define MANUF_ID        13          // DIY DCC
 #define BOARD_TYPE      5           // something for sv.init
 
-#define _SER_DEBUG
+//#define _SER_DEBUG
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance.
 
@@ -84,6 +84,7 @@ MFRC522::MIFARE_Key key;
 LocoNetSystemVariableClass sv;
 lnMsg       *LnPacket;
 lnMsg       SendPacket ;
+lnMsg       SendPacketSensor ;
 SV_STATUS   svStatus = SV_OK;
 boolean     deferredProcessingNeeded = false;
 
@@ -113,9 +114,9 @@ void setup() {
     
     if((ucAddrHi == 0xFF) && (ucAddrLo == 0xFF)){ //eeprom empty, first run 
        ucAddrHi = 1;
-       ucAddrLo = 0;
-       sv.writeSVStorage(SV_ADDR_NODE_ID_H, 1 );
-       sv.writeSVStorage(SV_ADDR_NODE_ID_L, 0);
+       ucAddrLo = 88;
+       sv.writeSVStorage(SV_ADDR_NODE_ID_H, ucAddrHi );
+       sv.writeSVStorage(SV_ADDR_NODE_ID_L, ucAddrLo);
   
        sv.writeSVStorage(SV_ADDR_SERIAL_NUMBER_H, 0x56);
        sv.writeSVStorage(SV_ADDR_SERIAL_NUMBER_L, 0x78);
@@ -160,29 +161,29 @@ void loop() {
 	uiStartTime = millis();
 	delaying = true;
 
-        SendPacket.data[10]=0;
+        SendPacketSensor.data[10]=0;
         for(i=0, j=5; i< 5; i++, j++){
            if(mfrc522.uid.size > i){
-              SendPacket.data[j] = mfrc522.uid.uidByte[i] & 0x7F; //loconet bytes haver only 7 bits;
+              SendPacketSensor.data[j] = mfrc522.uid.uidByte[i] & 0x7F; //loconet bytes haver only 7 bits;
                                                                // MSbit is transmited in the SendPacket.data[10]
               if(mfrc522.uid.uidByte[i] & 0x80){
-                 SendPacket.data[10] |= 1 << i;
+                 SendPacketSensor.data[10] |= 1 << i;
               }
-              SendPacket.data[11] ^= SendPacket.data[j]; //calculate the checksumm
+              SendPacketSensor.data[11] ^= SendPacketSensor.data[j]; //calculate the checksumm
            } else {
-              SendPacket.data[j] = 0;
+              SendPacketSensor.data[j] = 0;
            }        
         } //for(i=0
 
-        SendPacket.data[11] ^= SendPacket.data[10]; //calculate the checksumm
+        SendPacketSensor.data[11] ^= SendPacketSensor.data[10]; //calculate the checksumm
         
 #ifdef _SER_DEBUG
         // Show some details of the PICC (that is: the tag/card)
         Serial.print(F("LN send mess:"));
-        dump_byte_array(SendPacket.data, 12);
+        dump_byte_array(SendPacketSensor.data, 12);
         Serial.println();
 #endif
-        LocoNet.send( &SendPacket, 0x0C );        
+        LocoNet.send( &SendPacketSensor, 0x0C );        
         
      } else { //if(!delaying)
 	uiActTime = millis();			
@@ -199,11 +200,16 @@ void loop() {
   } //if ( mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){    
 
   LnPacket = LocoNet.receive() ;
-  if( LnPacket ) {
+  if( LnPacket && ((LnPacket->data[2] != ucAddrLo) || (LnPacket->data[4] != ucAddrHi))) { //new message sent by other
      uint8_t msgLen = getLnMsgSize(LnPacket);
 #ifdef _SER_DEBUG
      Serial.print(F("Loconet rec:"));
-     dump_byte_array(LnPacket.data, getLnMsgSize(LnPacket)); //
+     dump_byte_array(LnPacket->data, getLnMsgSize(LnPacket)); //
+     Serial.println();
+     Serial.print(F("AddrH: " ));
+     Serial.print(ucAddrHi);
+     Serial.print(F(" AddrL: " ));
+     Serial.print(ucAddrLo);
      Serial.println();
 #endif
 
@@ -250,15 +256,15 @@ bool compare_uid(byte *buffer1, byte *buffer2, byte bufferSize) {
 
 void setMessageHeader(void){
     unsigned char k =0;
-    SendPacket.data[0] = 0xE4; //OPC - variable length message 
-    SendPacket.data[1] = 0x0C; //12 bytes length
-    SendPacket.data[2] = 0x41; //report type 
-    SendPacket.data[3] = ucAddrHi; //12 bytes length
-    SendPacket.data[4] = ucAddrLo; //report type 
+    SendPacketSensor.data[0] = 0xE4; //OPC - variable length message 
+    SendPacketSensor.data[1] = 0x0C; //12 bytes length
+    SendPacketSensor.data[2] = 0x41; //report type 
+    SendPacketSensor.data[3] = ucAddrHi; //12 bytes length
+    SendPacketSensor.data[4] = ucAddrLo; //report type 
     
-    SendPacket.data[11]=0xFF;
+    SendPacketSensor.data[11]=0xFF;
     for(k=0; k<5;k++){
-      SendPacket.data[11] ^= SendPacket.data[k];
+      SendPacketSensor.data[11] ^= SendPacketSensor.data[k];
     }
 }
 
@@ -309,13 +315,14 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
                 ucAddrLo = ucPeerRSvValue;
                 // initMessagesArray();
                 cOutBuf->data[0x0B] = 0x7F;
+                    ucAddrLo = ucPeerRSvValue;
                 cOutBuf->data[0x0E] = ucPeerRSvValue;
-                sv.writeSVStorage(ucPeerRSvIndex, ucPeerRSvValue); //save the new value
+                sv.writeSVStorage(SV_ADDR_NODE_ID_L, ucPeerRSvValue); //save the new value
             } else if (ucPeerRSvIndex == 2) { //new high_address
                 if (ucPeerRSvValue != 0x7F) {
                     //initMessagesArray();
                     ucAddrHi = ucPeerRSvValue;
-                    sv.writeSVStorage(ucPeerRSvIndex, ucPeerRSvValue); //save the new value
+                    sv.writeSVStorage(SV_ADDR_NODE_ID_H, ucPeerRSvValue); //save the new value
                 }
                 cOutBuf->data[0x0B] = 0x7F;
                 cOutBuf->data[0x0E] = 0x7F;
