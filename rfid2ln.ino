@@ -35,10 +35,12 @@
 #include <LocoNet.h>
 
 #define RST_PIN         9           // Configurable, see typical pin layout above
-#define SS_PIN          10          // Configurable, see typical pin layout above
+#define SS_PIN          5           // Configurable, see typical pin layout above
 
 #define MANUF_ID        13          // DIY DCC
 #define BOARD_TYPE      5           // something for sv.init
+
+#define _SER_DEBUG
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance.
 
@@ -66,7 +68,7 @@ void setup() {
 #endif
 
     //initialize the LocoNet interface
-    LocoNet.init();
+    LocoNet.init(6);
     sv.init(MANUF_ID, BOARD_TYPE, 1, 1); //to see if needed just once (saved in EEPROM)
     
     ucAddrHi = sv.readSVStorage(SV_ADDR_NODE_ID_H);
@@ -111,12 +113,13 @@ void loop() {
 
   if ( mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){  
      if(!delaying){   //Avoid to many/to fast reads of the same tag
-/*       
+#ifdef _SER_DEBUG
         // Show some details of the PICC (that is: the tag/card)
         Serial.print(F("Card UID:"));
         dump_byte_array(mfrc522.uid.uidByte, mfrc522.uid.size);
         Serial.println();
-*/
+#endif
+
 	uiStartTime = millis();
 	delaying = true;
 
@@ -136,7 +139,13 @@ void loop() {
 
         SendPacket.data[11] ^= SendPacket.data[10]; //calculate the checksumm
         
-        LocoNet.send( &SendPacket );        
+#ifdef _SER_DEBUG
+        // Show some details of the PICC (that is: the tag/card)
+        Serial.print(F("LN send mess:"));
+        dump_byte_array(SendPacket.data, 12);
+        Serial.println();
+#endif
+        LocoNet.send( &SendPacket, 0x0C );        
         
      } else { //if(!delaying)
 	uiActTime = millis();			
