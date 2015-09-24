@@ -81,6 +81,8 @@ MFRC522::MIFARE_Key key;
 #define VER_LOW         0x01
 #define VER_HIGH        0X00
 
+#define NR_OF_PORTS     1
+
 LocoNetSystemVariableClass sv;
 lnMsg       *LnPacket;
 lnMsg       SendPacket ;
@@ -88,8 +90,11 @@ lnMsg       SendPacketSensor ;
 SV_STATUS   svStatus = SV_OK;
 boolean     deferredProcessingNeeded = false;
 
-unsigned char ucAddrHi = 0;
-unsigned char ucAddrLo = 0;
+uint8_t ucAddrHi = 0;
+uint8_t ucAddrLo = 0;
+
+uint8_t ucAddrHiSen = 0;
+uint8_t ucAddrLoSen = 0;
 
 bool compare_uid(byte *buffer1, byte *buffer2, byte bufferSize);
 void setMessageHeader(void);
@@ -109,17 +114,26 @@ void setup() {
     LocoNet.init(6);
     sv.init(MANUF_ID, BOARD_TYPE, 1, 1); //to see if needed just once (saved in EEPROM)
     
-    ucAddrHi = sv.readSVStorage(SV_ADDR_NODE_ID_H);
-    ucAddrLo = sv.readSVStorage(SV_ADDR_NODE_ID_L);
+    ucAddrHi = sv.readSVStorage(SV_ADDR_NODE_ID_H); //board address high
+    ucAddrLo = sv.readSVStorage(SV_ADDR_NODE_ID_L); //board address low
+
+    ucAddrHiSen = sv.readSVStorage(SV_ADDR_USER_BASE+1); //"sensor" address high
+    ucAddrLoSen = sv.readSVStorage(SV_ADDR_USER_BASE); //"sensor" address low
     
     if((ucAddrHi == 0xFF) && (ucAddrLo == 0xFF)){ //eeprom empty, first run 
        ucAddrHi = 1;
        ucAddrLo = 88;
+
        sv.writeSVStorage(SV_ADDR_NODE_ID_H, ucAddrHi );
        sv.writeSVStorage(SV_ADDR_NODE_ID_L, ucAddrLo);
   
        sv.writeSVStorage(SV_ADDR_SERIAL_NUMBER_H, 0x56);
        sv.writeSVStorage(SV_ADDR_SERIAL_NUMBER_L, 0x78);
+
+       ucAddrHiSen = 0;
+       ucAddrLoSen = 1;
+       sv.writeSVStorage(SV_ADDR_USER_BASE+1, ucAddrHiSen );
+       sv.writeSVStorage(SV_ADDR_USER_BASE, ucAddrLoSen);
     }
     
     SPI.begin();        // Init SPI bus
@@ -222,6 +236,7 @@ void loop() {
 
         processXferMess(LnPacket, &SendPacket);
         LocoNet.send( &SendPacket );        
+        setMessageHeader(); //if the sensor address was changed, update the header
                 
 #ifdef _SER_DEBUG
         Serial.print("LNSV processMessage - Status: ");
@@ -259,8 +274,8 @@ void setMessageHeader(void){
     SendPacketSensor.data[0] = 0xE4; //OPC - variable length message 
     SendPacketSensor.data[1] = 0x0C; //12 bytes length
     SendPacketSensor.data[2] = 0x41; //report type 
-    SendPacketSensor.data[3] = ucAddrHi; //12 bytes length
-    SendPacketSensor.data[4] = ucAddrLo; //report type 
+    SendPacketSensor.data[3] = ucAddrHiSen; //sensor address high
+    SendPacketSensor.data[4] = ucAddrLoSen; //sensor address low 
     
     SendPacketSensor.data[11]=0xFF;
     for(k=0; k<5;k++){
@@ -326,7 +341,23 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
                 }
                 cOutBuf->data[0x0B] = 0x7F;
                 cOutBuf->data[0x0E] = 0x7F;
-            }
+            } else if (ucPeerRSvIndex < (NR_OF_PORTS * 3 + 3)) { //8 inputs * 3 register starting with the address 3
+                if ((ucPeerRSvIndex % 3) != 0) { // do not change the type (leave it as IN)
+                    sv.writeSVStorage(SV_ADDR_USER_BASE, (ucPeerRSvIndex % 3)-1); //save the new value
+                }
+#if 0 //values needed for "normal sensors, not for rfid uid
+                if ((ucPeerRSvIndex % 3) == 2) { //5, 8, 11,... high addresses
+                    SenRepMess[ucPeerRSvIndex / 3 - 1].highAddressSenHigh = ucPeerRSvValue | 0b01010000;
+                    SenRepMess[ucPeerRSvIndex / 3 - 1].highAddressSenLow = (ucPeerRSvValue | 0b01000000) & 0xEF;
+                }
+#endif
+                cOutBuf->data[0x0B] = ucAddrHi; //board? sensor?
+                ucTempData = sv.readSVStorage((ucPeerRSvIndex % 3)-1);
+                if (ucTempData & 0x80) { //msb==1 => sent in PXCTL2
+                    cOutBuf->data[0x0A] |= 0x08; //PXCTL2.3 = D8.7
+                }
+                cOutBuf->data[0x0E] = ucTempData & 0x7F;
+            } //if (ucPeerRSvIndex < (NR_OF_PORTS * 3 + 3))
             cOutBuf->data[0x0C] = 0;
             cOutBuf->data[0x0D] = 0;
         } //if (cLnBuffer[0x06] == SV_CMD_WRITE)
