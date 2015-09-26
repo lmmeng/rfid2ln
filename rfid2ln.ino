@@ -94,12 +94,18 @@ uint8_t ucAddrHi = 0;
 uint8_t ucAddrLo = 0;
 
 uint8_t ucAddrHiSen = 0;
-uint8_t ucAddrLoSen = 0;
+uint8_t ucAddrLoSen = 1;
+uint8_t ucSenType = 0x0F; //input
+uint16_t uiAddrSenFull;
 
 bool compare_uid(byte *buffer1, byte *buffer2, byte bufferSize);
 void setMessageHeader(void);
 uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *LnSendMsg);
 uint8_t lnCalcCheckSumm(uint8_t *cMessage, uint8_t cMesLen);
+uint8_t uiLnSendCheckSumIdx = 13;
+uint8_t uiLnSendLength = 14; //14 bytes
+uint8_t uiLnSendMsbIdx = 12;
+uint8_t uiStartChkSen;
   
 /**
  * Initialize.
@@ -111,15 +117,13 @@ void setup() {
 #endif
 
     //initialize the LocoNet interface
-    LocoNet.init(6);
+    LocoNet.init();
     sv.init(MANUF_ID, BOARD_TYPE, 1, 1); //to see if needed just once (saved in EEPROM)
+
     
     ucAddrHi = sv.readSVStorage(SV_ADDR_NODE_ID_H); //board address high
     ucAddrLo = sv.readSVStorage(SV_ADDR_NODE_ID_L); //board address low
 
-    ucAddrHiSen = sv.readSVStorage(SV_ADDR_USER_BASE+1); //"sensor" address high
-    ucAddrLoSen = sv.readSVStorage(SV_ADDR_USER_BASE); //"sensor" address low
-    
     if((ucAddrHi == 0xFF) && (ucAddrLo == 0xFF)){ //eeprom empty, first run 
        ucAddrHi = 1;
        ucAddrLo = 88;
@@ -130,11 +134,21 @@ void setup() {
        sv.writeSVStorage(SV_ADDR_SERIAL_NUMBER_H, 0x56);
        sv.writeSVStorage(SV_ADDR_SERIAL_NUMBER_L, 0x78);
 
-       ucAddrHiSen = 0;
-       ucAddrLoSen = 1;
-       sv.writeSVStorage(SV_ADDR_USER_BASE+1, ucAddrHiSen );
-       sv.writeSVStorage(SV_ADDR_USER_BASE, ucAddrLoSen);
+       ucSenType=0x0F;
+       sv.writeSVStorage(SV_ADDR_USER_BASE+2, 0);
+       sv.writeSVStorage(SV_ADDR_USER_BASE+1, 0);
+       sv.writeSVStorage(SV_ADDR_USER_BASE, ucSenType);
+
+        uiAddrSenFull = 256 * (sv.readSVStorage(SV_ADDR_USER_BASE+2) & 0x0F) + 2 * sv.readSVStorage(SV_ADDR_USER_BASE+1) +
+                    (sv.readSVStorage(SV_ADDR_USER_BASE+2) >> 5) + 1;
     }
+    
+    uiAddrSenFull = 256 * (sv.readSVStorage(SV_ADDR_USER_BASE+2) & 0x0F) + 2 * sv.readSVStorage(SV_ADDR_USER_BASE+1) +
+                    (sv.readSVStorage(SV_ADDR_USER_BASE+2) >> 5) + 1;
+
+    ucAddrHiSen = (uiAddrSenFull >> 7) & 0x7F;
+    ucAddrLoSen = uiAddrSenFull & 0x7F;        
+    ucSenType = sv.readSVStorage(SV_ADDR_USER_BASE); //"sensor" type = in
     
     SPI.begin();        // Init SPI bus
     mfrc522.PCD_Init(); // Init MFRC522 card
@@ -149,6 +163,19 @@ void setup() {
     // or if the address is changed over loconet
 
     setMessageHeader();
+    uiStartChkSen = SendPacketSensor.data[uiLnSendCheckSumIdx];
+
+#ifdef _SER_DEBUG
+        // Show some details of the loconet setup
+        Serial.print(F("Full sen addr: "));
+        Serial.print(uiAddrSenFull);
+        Serial.print(F(" Sensor AddrH: "));
+        Serial.print(ucAddrHiSen);
+        Serial.print(F(" Sensor AddrL: "));
+        Serial.print(ucAddrLoSen);
+        Serial.println();
+#endif
+    
 }
 
 /**
@@ -161,7 +188,7 @@ void loop() {
   bool delaying;
   unsigned char i=0;
   unsigned char j=0;  
-  uint16_t uiDelayTime = 200;
+  uint16_t uiDelayTime = 1000;
 
   if ( mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){  
      if(!delaying){   //Avoid to many/to fast reads of the same tag
@@ -170,34 +197,44 @@ void loop() {
         Serial.print(F("Card UID:"));
         dump_byte_array(mfrc522.uid.uidByte, mfrc522.uid.size);
         Serial.println();
+
+        // Show some details of the loconet setup
+        Serial.print(F("Full sen addr: "));
+        Serial.print(uiAddrSenFull);
+        Serial.print(F("Sensor AddrH: "));
+        Serial.print(ucAddrHiSen);
+        Serial.print(F(" Sensor AddrL: "));
+        Serial.print(ucAddrLoSen);
+        Serial.println();
 #endif
 
 	uiStartTime = millis();
 	delaying = true;
 
-        SendPacketSensor.data[10]=0;
-        for(i=0, j=5; i< 5; i++, j++){
+        SendPacketSensor.data[uiLnSendCheckSumIdx]= uiStartChkSen; //start with header check summ
+        SendPacketSensor.data[uiLnSendMsbIdx]=0; //clear the byte for the ms bits
+        for(i=0, j=5; i< 7; i++, j++){
            if(mfrc522.uid.size > i){
               SendPacketSensor.data[j] = mfrc522.uid.uidByte[i] & 0x7F; //loconet bytes haver only 7 bits;
                                                                // MSbit is transmited in the SendPacket.data[10]
               if(mfrc522.uid.uidByte[i] & 0x80){
-                 SendPacketSensor.data[10] |= 1 << i;
+                 SendPacketSensor.data[uiLnSendMsbIdx] |= 1 << i;
               }
-              SendPacketSensor.data[11] ^= SendPacketSensor.data[j]; //calculate the checksumm
+              SendPacketSensor.data[uiLnSendCheckSumIdx] ^= SendPacketSensor.data[j]; //calculate the checksumm
            } else {
               SendPacketSensor.data[j] = 0;
            }        
         } //for(i=0
 
-        SendPacketSensor.data[11] ^= SendPacketSensor.data[10]; //calculate the checksumm
+        SendPacketSensor.data[uiLnSendCheckSumIdx] ^= SendPacketSensor.data[uiLnSendMsbIdx]; //calculate the checksumm
         
 #ifdef _SER_DEBUG
         // Show some details of the PICC (that is: the tag/card)
         Serial.print(F("LN send mess:"));
-        dump_byte_array(SendPacketSensor.data, 12);
+        dump_byte_array(SendPacketSensor.data, uiLnSendLength);
         Serial.println();
 #endif
-        LocoNet.send( &SendPacketSensor, 0x0C );        
+        LocoNet.send( &SendPacketSensor, uiLnSendLength );        
         
      } else { //if(!delaying)
 	uiActTime = millis();			
@@ -212,43 +249,23 @@ void loop() {
      mfrc522.PCD_StopCrypto1();
 
   } //if ( mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){    
-
   LnPacket = LocoNet.receive() ;
   if( LnPacket && ((LnPacket->data[2] != ucAddrLo) || (LnPacket->data[4] != ucAddrHi))) { //new message sent by other
      uint8_t msgLen = getLnMsgSize(LnPacket);
-#ifdef _SER_DEBUG
-     Serial.print(F("Loconet rec:"));
-     dump_byte_array(LnPacket->data, getLnMsgSize(LnPacket)); //
-     Serial.println();
-     Serial.print(F("AddrH: " ));
-     Serial.print(ucAddrHi);
-     Serial.print(F(" AddrL: " ));
-     Serial.print(ucAddrLo);
-     Serial.println();
-#endif
-
-     //in this part I'm trying to change the board address. Should see if it is working 
-     // directly with the library function or I should implement it 
+     
+     //Change the board & sensor addresses. Changing the board address is working
      if(msgLen == 0x10){  //XFERmessage, check if it is for me. Used to change the address
-        //sv.processMessage doesn't work. It expected special formats that are not in 
-        //the loconetpersonaledition.pdf => oun implementatio => processXferMess()
-        //svStatus = sv.processMessage(LnPacket);
-
+         //svStatus = sv.processMessage(LnPacket);
         processXferMess(LnPacket, &SendPacket);
         LocoNet.send( &SendPacket );        
-        setMessageHeader(); //if the sensor address was changed, update the header
-                
-#ifdef _SER_DEBUG
-        Serial.print("LNSV processMessage - Status: ");
-        Serial.println(svStatus);
-#endif    
-//        deferredProcessingNeeded = (svStatus == SV_DEFERRED_PROCESSING_NEEDED);
+        uiAddrSenFull = 256 * (sv.readSVStorage(SV_ADDR_USER_BASE+2) & 0x0F) + 2 * sv.readSVStorage(SV_ADDR_USER_BASE + 1) +
+                        (sv.readSVStorage(SV_ADDR_USER_BASE+2) >> 5) + 1;
+
+        ucAddrHiSen = (uiAddrSenFull >> 7) & 0x7F;
+        ucAddrLoSen = uiAddrSenFull & 0x7F;
+        setMessageHeader(); //if the sensor address was changed, update the header                
      } //if(msgLen == 0x10)
   }
-
-//  if(deferredProcessingNeeded){
-//     deferredProcessingNeeded = (sv.doDeferredProcessing() != SV_OK);
-//  }
 }
 
 /**
@@ -270,16 +287,16 @@ bool compare_uid(byte *buffer1, byte *buffer2, byte bufferSize) {
 }
 
 void setMessageHeader(void){
-    unsigned char k =0;
+    unsigned char k = 0;
     SendPacketSensor.data[0] = 0xE4; //OPC - variable length message 
-    SendPacketSensor.data[1] = 0x0C; //12 bytes length
+    SendPacketSensor.data[1] = uiLnSendLength; //14 bytes length
     SendPacketSensor.data[2] = 0x41; //report type 
     SendPacketSensor.data[3] = ucAddrHiSen; //sensor address high
     SendPacketSensor.data[4] = ucAddrLoSen; //sensor address low 
     
-    SendPacketSensor.data[11]=0xFF;
+    SendPacketSensor.data[uiLnSendCheckSumIdx]=0xFF;
     for(k=0; k<5;k++){
-      SendPacketSensor.data[11] ^= SendPacketSensor.data[k];
+      SendPacketSensor.data[uiLnSendCheckSumIdx] ^= SendPacketSensor.data[k];
     }
 }
 
@@ -322,7 +339,7 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
         ucPeerRSvValue = LnRecMsg->data[0x09];
 
         if (ucPeerRCommand == SV_CMD_WRITE) { //write command. Save the new data and answer to sender
-            if (ucPeerRSvIndex == 0) {
+            if (ucPeerRSvIndex == 0) { //board address high
                 ucPeerRSvValue &= 0xFE; //LocoHDL is increasing this value with each write cycle
                 cOutBuf->data[0x0B] = ucAddrHi;
                 cOutBuf->data[0x0E] = 0;
@@ -330,7 +347,7 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
                 ucAddrLo = ucPeerRSvValue;
                 // initMessagesArray();
                 cOutBuf->data[0x0B] = 0x7F;
-                    ucAddrLo = ucPeerRSvValue;
+                ucAddrLo = ucPeerRSvValue;
                 cOutBuf->data[0x0E] = ucPeerRSvValue;
                 sv.writeSVStorage(SV_ADDR_NODE_ID_L, ucPeerRSvValue); //save the new value
             } else if (ucPeerRSvIndex == 2) { //new high_address
@@ -341,20 +358,14 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
                 }
                 cOutBuf->data[0x0B] = 0x7F;
                 cOutBuf->data[0x0E] = 0x7F;
-            } else if (ucPeerRSvIndex < (NR_OF_PORTS * 3 + 3)) { //8 inputs * 3 register starting with the address 3
+            } else if (ucPeerRSvIndex < (NR_OF_PORTS * 3 + 3)) { //nr_of_ports (1) * 3 register starting with the address 3
                 if ((ucPeerRSvIndex % 3) != 0) { // do not change the type (leave it as IN)
-                    sv.writeSVStorage(SV_ADDR_USER_BASE, (ucPeerRSvIndex % 3)-1); //save the new value
+                    sv.writeSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex % 3), ucPeerRSvValue); //save the new value
                 }
-#if 0 //values needed for "normal sensors, not for rfid uid
-                if ((ucPeerRSvIndex % 3) == 2) { //5, 8, 11,... high addresses
-                    SenRepMess[ucPeerRSvIndex / 3 - 1].highAddressSenHigh = ucPeerRSvValue | 0b01010000;
-                    SenRepMess[ucPeerRSvIndex / 3 - 1].highAddressSenLow = (ucPeerRSvValue | 0b01000000) & 0xEF;
-                }
-#endif
-                cOutBuf->data[0x0B] = ucAddrHi; //board? sensor?
-                ucTempData = sv.readSVStorage((ucPeerRSvIndex % 3)-1);
+                cOutBuf->data[0x0B] = ucAddrHi; 
+                ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex % 3));
                 if (ucTempData & 0x80) { //msb==1 => sent in PXCTL2
-                    cOutBuf->data[0x0A] |= 0x08; //PXCTL2.3 = D8.7
+                   cOutBuf->data[0x0A] |= 0x08; //PXCTL2.3 = D8.7
                 }
                 cOutBuf->data[0x0E] = ucTempData & 0x7F;
             } //if (ucPeerRSvIndex < (NR_OF_PORTS * 3 + 3))
@@ -365,18 +376,18 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
         if ((ucPeerRCommand == SV_CMD_READ) || (ucPeerRCommand == 0)) { //read command. Answer to sender
             cOutBuf->data[0x0B] = 0x01;
 
-            ucTempData = sv.readSVStorage(ucPeerRSvIndex);
+            ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex-3));
             if (ucTempData & 0x80) { //msb==1 => sent in PXCTL2
                 cOutBuf->data[0x0A] |= 0x02; //PXCTL2.1 = D6.7
             }
             cOutBuf->data[0x0C] = ucTempData & 0x7F;
 
-            ucTempData = sv.readSVStorage(ucPeerRSvIndex + 1);
+            ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex-3) + 1);
             if (ucTempData & 0x80) { //msb==1 => sent in PXCTL2
                 cOutBuf->data[0x0A] |= 0x04; //PXCTL2.2 = D7.7
             }
             cOutBuf->data[0x0D] = ucTempData & 0x7F;
-            ucTempData = sv.readSVStorage(ucPeerRSvIndex + 2);
+            ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex-3) + 2);
             if (ucTempData & 0x80) { //msb==1 => sent in PXCTL2
                 cOutBuf->data[0x0A] |= 0x08; //PXCTL2.3 = D8.7
             }
@@ -395,7 +406,7 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
         cOutBuf->data[0x0F] = lnCalcCheckSumm(cOutBuf->data, LN_MESS_LEN_PEER);
     }
 
-    return 1;
+    return 1;  //should put the right here
 }
 
 /**********char lnCalcCheckSumm(...)**********************
