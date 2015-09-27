@@ -143,11 +143,9 @@ void setup() {
        sv.writeSVStorage(SV_ADDR_USER_BASE+2, 0);
        sv.writeSVStorage(SV_ADDR_USER_BASE+1, 0);
        sv.writeSVStorage(SV_ADDR_USER_BASE, ucSenType);
-
-        uiAddrSenFull = 256 * (sv.readSVStorage(SV_ADDR_USER_BASE+2) & 0x0F) + 2 * sv.readSVStorage(SV_ADDR_USER_BASE+1) +
-                    (sv.readSVStorage(SV_ADDR_USER_BASE+2) >> 5) + 1;
     }
-    
+
+    // Rocrail compatible addressing
     uiAddrSenFull = 256 * (sv.readSVStorage(SV_ADDR_USER_BASE+2) & 0x0F) + 2 * sv.readSVStorage(SV_ADDR_USER_BASE+1) +
                     (sv.readSVStorage(SV_ADDR_USER_BASE+2) >> 5) + 1;
 
@@ -267,8 +265,11 @@ void loop() {
      //Change the board & sensor addresses. Changing the board address is working
      if(msgLen == 0x10){  //XFERmessage, check if it is for me. Used to change the address
          //svStatus = sv.processMessage(LnPacket);
+         
         processXferMess(LnPacket, &SendPacket);
-        LocoNet.send( &SendPacket );        
+        LocoNet.send( &SendPacket );    
+            
+        // Rocrail compatible addressing
         uiAddrSenFull = 256 * (sv.readSVStorage(SV_ADDR_USER_BASE+2) & 0x0F) + 2 * sv.readSVStorage(SV_ADDR_USER_BASE + 1) +
                         (sv.readSVStorage(SV_ADDR_USER_BASE+2) >> 5) + 1;
 
