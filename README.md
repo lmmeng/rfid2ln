@@ -13,7 +13,8 @@ The RFID data is sent over Loconet using a variable length message type (0xEx), 
 `
 
 where the UIDX_LSB contains the bite b6..b0 of the corresponding UIDx, and the UID_MSBS contains the MSBits of 
-UID0..UID6 as b0..b6.
+UID0..UID6 as b0..b6. 
+The ADDR_H & ADDR_L are the sensor addresses.  
 
 <a name="hardware"></a>
 <h2><a id="hardware" class="anchor" href="#hardware" aria-hidden="true"><span class="octicon octicon-link"></span></a>Hardware</h2>
@@ -22,10 +23,9 @@ To connect the Arduino board to the Loconet (R) bus, use the LocoNet interface p
 
 The connections between the Arduino and the MFRC522 board are described in the code (and on MFRC522 library's site  at https://github.com/miguelbalboa/rfid).
 
-<a name="to-do"></a>
-<h2><a id="to-do" class="anchor" href="#to-do" aria-hidden="true"><span class="octicon octicon-link"></span></a>TO DO's</h2>
-- implement of answering to the Loconet Query command (similar to the LocoIO - http://users.telenet.be/deloof/page6.htmlLocoIO)
-- implement the (board) address change (similar to the LocoIO)
+<a name="functional description"></a>
+<h2><a id="to-do" class="anchor" href="#func-desc" aria-hidden="true"><span class="octicon octicon-link"></span></a>Small functional description</h2>
+Because this interface is desined to work with Rocrail as the LocoIO does, it has a board address (default 88-1) and a sensor address. The configuring/programming of the board can be done using the LocoIO programming facility of Rocrail. Because of that, the sensor address range is 0..4095, and sensor address codification is matched to the Rocrail ones.
 
 <a name="user-content-license"></a>
 <h2><a id="user-content-license" class="anchor" href="#license" aria-hidden="true"><span class="octicon octicon-link"></span></a>License</h2>
