@@ -34,18 +34,13 @@
 #include <MFRC522.h>
 #include <LocoNet.h>
 
+//#define _SER_DEBUG
+
 #define RST_PIN         9           // Configurable, see typical pin layout above
 #define SS_PIN          5           // Configurable, see typical pin layout above
 
 #define MANUF_ID        13          // DIY DCC
 #define BOARD_TYPE      5           // something for sv.init
-
-//#define _SER_DEBUG
-
-MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance.
-
-MFRC522::MIFARE_Key key;
-
 
     // --------------------------------------------------------
     // OPC_PEER_XFER SV_CMD's
@@ -82,6 +77,12 @@ MFRC522::MIFARE_Key key;
 #define VER_HIGH        0X00
 
 #define NR_OF_PORTS     1
+#define UID_LEN         7
+
+MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance.
+
+MFRC522::MIFARE_Key key;
+
 
 LocoNetSystemVariableClass sv;
 lnMsg       *LnPacket;
@@ -98,7 +99,8 @@ uint8_t ucAddrLoSen = 1;
 uint8_t ucSenType = 0x0F; //input
 uint16_t uiAddrSenFull;
 
-bool compare_uid(byte *buffer1, byte *buffer2, byte bufferSize);
+bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize);
+void copyUid(byte *buffIn, byte *buffOut, byte bufferSize);
 void setMessageHeader(void);
 uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *LnSendMsg);
 uint8_t lnCalcCheckSumm(uint8_t *cMessage, uint8_t cMesLen);
@@ -106,6 +108,8 @@ uint8_t uiLnSendCheckSumIdx = 13;
 uint8_t uiLnSendLength = 14; //14 bytes
 uint8_t uiLnSendMsbIdx = 12;
 uint8_t uiStartChkSen;
+
+uint8_t oldUid[UID_LEN] = {0};
   
 /**
  * Initialize.
@@ -208,12 +212,12 @@ void loop() {
         Serial.println();
 #endif
 
-	uiStartTime = millis();
-	delaying = true;
+	      uiStartTime = millis();
+	      delaying = true;
 
         SendPacketSensor.data[uiLnSendCheckSumIdx]= uiStartChkSen; //start with header check summ
         SendPacketSensor.data[uiLnSendMsbIdx]=0; //clear the byte for the ms bits
-        for(i=0, j=5; i< 7; i++, j++){
+        for(i=0, j=5; i< UID_LEN; i++, j++){
            if(mfrc522.uid.size > i){
               SendPacketSensor.data[j] = mfrc522.uid.uidByte[i] & 0x7F; //loconet bytes haver only 7 bits;
                                                                // MSbit is transmited in the SendPacket.data[10]
@@ -227,20 +231,26 @@ void loop() {
         } //for(i=0
 
         SendPacketSensor.data[uiLnSendCheckSumIdx] ^= SendPacketSensor.data[uiLnSendMsbIdx]; //calculate the checksumm
-        
+
 #ifdef _SER_DEBUG
         // Show some details of the PICC (that is: the tag/card)
         Serial.print(F("LN send mess:"));
         dump_byte_array(SendPacketSensor.data, uiLnSendLength);
         Serial.println();
 #endif
-        LocoNet.send( &SendPacketSensor, uiLnSendLength );        
+        LocoNet.send( &SendPacketSensor, uiLnSendLength );    
+
+        copyUid(mfrc522.uid.uidByte, oldUid, mfrc522.uid.size);
         
      } else { //if(!delaying)
-	uiActTime = millis();			
-	if((uiActTime - uiStartTime) > uiDelayTime){
-	   delaying = false;
-        } //if((uiActTime
+	       uiActTime = millis();	
+         if(compareUid(	mfrc522.uid.uidByte, oldUid, mfrc522.uid.size)){//same UID	
+	          if((uiActTime - uiStartTime) > uiDelayTime){
+	             delaying = false;
+            } //if((uiActTime
+         } else { //new UID
+            delaying = false;
+         }
      } //else 
      
      // Halt PICC
@@ -278,12 +288,23 @@ void dump_byte_array(byte *buffer, byte bufferSize) {
     }
 }
 
-bool compare_uid(byte *buffer1, byte *buffer2, byte bufferSize) {
+bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize) {
     bool retVal = true;
     for (byte i = 0; i < bufferSize, retVal; i++) {
         retVal = (buffer1[i] == buffer2[i]);
     }
 	return retVal;
+}
+
+void copyUid (byte *buffIn, byte *buffOut, byte bufferSize) {
+    for (byte i = 0; i < bufferSize; i++) {
+        buffOut[i] = buffIn[i];
+    }
+    if(bufferSize < UID_LEN){
+       for (byte i = bufferSize; i < UID_LEN; i++) {
+           buffOut[i] = 0;
+       }    
+    }
 }
 
 void setMessageHeader(void){
