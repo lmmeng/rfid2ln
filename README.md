@@ -25,7 +25,7 @@ The connections between the Arduino and the MFRC522 board are described in the c
 
 <a name="functional description"></a>
 <h2><a id="to-do" class="anchor" href="#func-desc" aria-hidden="true"><span class="octicon octicon-link"></span></a>Small functional description</h2>
-Because this interface is desined to work with Rocrail as the LocoIO does, it has a board address (default 88) and a sensor address (addr_h, addr_l, default 0-1). The configuring/programming of the board can be done using the LocoIO programming facility of Rocrail; for the sensor address, the Port1 should be used. To keep the compatibility with Rocrail, the sensor address range is 0..4095, and sensor address codification is matched to the Rocrail ones.
+Because this interface is desined to work with Rocrail as the LocoIO does, it has a board address (default 88) and a sensor address (addr_h, addr_l, default 0-1). The configuring/programming of the board can be done using the LocoIO programming facility of Rocrail; for the sensor address, the Port1 should be used. To keep the compatibility with Rocrail, the sensor address range is 0..4095, and sensor address codification is matched to the Rocrail one.
 
 <a name="user-content-license"></a>
 <h2><a id="user-content-license" class="anchor" href="#license" aria-hidden="true"><span class="octicon octicon-link"></span></a>License</h2>
