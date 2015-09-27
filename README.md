@@ -9,11 +9,11 @@ Requirements:
 The RFID data is sent over Loconet using a variable length message type (0xEx), with 12 bytes length:
 
 `
-0xE4 0x0C 0x41 <ADDR_H> <ADDR_L> <UID0_LSB> <UID1_LSB> <UID2_LSB> <UID3_LSB> <UID4_LSB> <UID_MSBS> <CHK_SUMM>
+0xE4 0x0C 0x41 <ADDR_H> <ADDR_L> <UID0_LSB> <UID1_LSB> <UID2_LSB> <UID3_LSB> <UID4_LSB> <UID5_LSB> <UID6_LSB> <UID_MSBS> <CHK_SUMM>
 `
 
 where the UIDX_LSB contains the bite b6..b0 of the corresponding UIDx, and the UID_MSBS contains the MSBits of 
-UID0..UID4 as b0..b4.
+UID0..UID6 as b0..b6.
 
 <a name="hardware"></a>
 <h2><a id="hardware" class="anchor" href="#hardware" aria-hidden="true"><span class="octicon octicon-link"></span></a>Hardware</h2>
