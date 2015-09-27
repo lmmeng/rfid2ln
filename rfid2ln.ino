@@ -37,7 +37,8 @@
 //#define _SER_DEBUG
 
 #define RST_PIN         9           // Configurable, see typical pin layout above
-#define SS_PIN          5           // Configurable, see typical pin layout above
+#define SS_PIN          5           // Configurable, see typical pin layout above, 
+                                    // I'm using the Leonardo board
 
 #define MANUF_ID        13          // DIY DCC
 #define BOARD_TYPE      5           // something for sv.init
