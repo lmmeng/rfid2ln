@@ -1,6 +1,6 @@
 <h1><a id="user-content-rfid2ln" class="anchor" href="#rfid2ln" aria-hidden="true"><span class="octicon octicon-link"></span></a>RFID to Loconet (r) interface</h1>
 
-Combining the mrrwa (http://mrrwa.org/) and MFRC522 (https://github.com/miguelbalboa/rfid) projects to create a RFID over Loconet (r) interface for the roling stock localisation in model railroad control programs (main target is Rocrail - www.rocrail.net, as this is the program I'm using).
+Combining the mrrwa (http://mrrwa.org/) and MFRC522 (https://github.com/miguelbalboa/rfid) projects to create a RFID over Loconet (r) interface for the rolling stock localisation in model railroad control programs (main target is Rocrail - www.rocrail.net, as this is the program I'm using).
 
 Requirements:
 - LocoNet library (http://mrrwa.org/, https://github.com/mrrwa/LocoNet);
