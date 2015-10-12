@@ -6,7 +6,7 @@ Requirements:
 - LocoNet library (http://mrrwa.org/, https://github.com/mrrwa/LocoNet);
 - MFRC522 library (https://github.com/miguelbalboa/rfid)
 
-The RFID data is sent over Loconet using a variable length message type (0xEx), with 12 bytes length:
+The RFID data is sent over Loconet using a variable length message type (0xEx), with 14 bytes length:
 
 `
 0xE4 0x0E 0x41 <ADDR_H> <ADDR_L> <UID0_LSB> <UID1_LSB> <UID2_LSB> <UID3_LSB> <UID4_LSB> <UID5_LSB> <UID6_LSB> <UID_MSBS> <CHK_SUMM>
