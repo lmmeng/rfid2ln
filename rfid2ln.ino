@@ -36,41 +36,42 @@
 
 //#define _SER_DEBUG
 
-#define RST_PIN         9           // Configurable, see typical pin layout above
-#define SS_PIN          5           // Configurable, see typical pin layout above, 
-                                    // I'm using the Leonardo board
+#define RST_PIN         9           /* Configurable, see typical pin layout above*/
+#define SS_PIN          5           /* Configurable, see typical pin layout above*/ 
+                                    /* I'm using the Leonardo board*/
 
-#define MANUF_ID        13          // DIY DCC
-#define BOARD_TYPE      5           // something for sv.init
+#define MANUF_ID        13          /* DIY DCC*/
+#define BOARD_TYPE      5           /* something for sv.init*/
 
     // --------------------------------------------------------
     // OPC_PEER_XFER SV_CMD's
     // --------------------------------------------------------
 
-#define SV_CMD_WRITE            0x01    // Write 1 byte of data from D1
-#define SV_CMD_READ             0x02    // Initiate read 1 byte of data into D1
-#define SV_CMD_MASKED_WRITE     0x03    // Write 1 byte of masked data from D1. D2 contains the mask to be used.
-#define SV_CMD_WRITE4           0x05    // Write 4 bytes of data from D1..D4
-#define SV_CMD_READ4            0x06    // Initiate read 4 bytes of data into D1..D4
-#define SV_CMD_DISCOVER         0x07    // Causes all devices to identify themselves by their MANUFACTURER_ID, DEVELOPER_ID, PRODUCT_ID and Serial Number
-#define SV_CMD_IDENTIFY         0x08    // Causes an individual device to identify itself by its MANUFACTURER_ID, DEVELOPER_ID, PRODUCT_ID and Serial Number
-#define SV_CMD_CHANGE_ADDR      0x09    // Changes the device address to the values specified in <DST_L> + <DST_H> in the device that matches the values specified in <SV_ADRL> + <SV_ADRH> + <D1>..<D4> that we in the reply to the Discover or Identify command issued previously
-#define SV_CMD_RECONFIGURE      0x4F    // Initiates a device reconfiguration or reset so that any new device configuration becomes active
+#define SV_CMD_WRITE            0x01    /* Write 1 byte of data from D1*/
+#define SV_CMD_READ             0x02    /* Initiate read 1 byte of data into D1*/
+#define SV_CMD_MASKED_WRITE     0x03    /* Write 1 byte of masked data from D1. D2 contains the mask to be used.*/
+#define SV_CMD_WRITE4           0x05    /* Write 4 bytes of data from D1..D4*/
+#define SV_CMD_READ4            0x06    /* Initiate read 4 bytes of data into D1..D4*/
+#define SV_CMD_DISCOVER         0x07    /* Causes all devices to identify themselves by their MANUFACTURER_ID, DEVELOPER_ID, PRODUCT_ID and Serial Number*/
+#define SV_CMD_IDENTIFY         0x08    /* Causes an individual device to identify itself by its MANUFACTURER_ID, DEVELOPER_ID, PRODUCT_ID and Serial Number*/
+#define SV_CMD_CHANGE_ADDR      0x09    /* Changes the device address to the values specified in <DST_L> + <DST_H> in the device that matches */
+                                        /* the values specified in <SV_ADRL> + <SV_ADRH> + <D1>..<D4> that we in the reply to the Discover or Identify command issued previously*/
+#define SV_CMD_RECONFIGURE      0x4F    /* Initiates a device reconfiguration or reset so that any new device configuration becomes active*/
 
     // Replies
-#define SV_CMDR_WRITE           0x41    // Transfers a write response in D1
-#define SV_CMDR_READ            0x42    // Transfers a read response in D1
-#define SV_CMDR_MASKED_WRITE    0x43    // Transfers a masked write response in D1
-#define SV_CMDR_WRITE4          0x45    // Transfers a write response in D1..D4
-#define SV_CMDR_READ4           0x46    // Transfers a read response in D1..D4
-#define SV_CMDR_DISCOVER        0x47    // Transfers an Discover response containing the MANUFACTURER_ID, DEVELOPER_ID, PRODUCT_ID and Serial Number
-#define SV_CMDR_IDENTIFY        0x48    // Transfers an Identify response containing the MANUFACTURER_ID, DEVELOPER_ID, PRODUCT_ID and Serial Number
-#define SV_CMDR_CHANGE_ADDR     0x49    // Transfers a Change Address response.
-#define SV_CMDR_RECONFIGURE     0x4F    // Acknowledgement immediately prior to a device reconfiguration or reset
+#define SV_CMDR_WRITE           0x41    /* Transfers a write response in D1*/
+#define SV_CMDR_READ            0x42    /* Transfers a read response in D1*/
+#define SV_CMDR_MASKED_WRITE    0x43    /* Transfers a masked write response in D1*/
+#define SV_CMDR_WRITE4          0x45    /* Transfers a write response in D1..D4*/
+#define SV_CMDR_READ4           0x46    /* Transfers a read response in D1..D4*/
+#define SV_CMDR_DISCOVER        0x47    /* Transfers an Discover response containing the MANUFACTURER_ID, DEVELOPER_ID, PRODUCT_ID and Serial Number*/
+#define SV_CMDR_IDENTIFY        0x48    /* Transfers an Identify response containing the MANUFACTURER_ID, DEVELOPER_ID, PRODUCT_ID and Serial Number*/
+#define SV_CMDR_CHANGE_ADDR     0x49    /* Transfers a Change Address response.*/
+#define SV_CMDR_RECONFIGURE     0x4F    /* Acknowledgement immediately prior to a device reconfiguration or reset*/
 
 //Other LN definitions
-#define SEN_QUERY_LOW_ADDRESS   0x79    // 1017 & 0x007F - 7 bits low address for the sensors query address 1017
-#define SEN_QUERY_HIGH_ADDRESS  0x07    // (1017 >> 8) & 0x07 - high address bits for the sensors query address 1017
+#define SEN_QUERY_LOW_ADDRESS   0x79    /* 1017 & 0x007F - 7 bits low address for the sensors query address 1017*/
+#define SEN_QUERY_HIGH_ADDRESS  0x07    /* (1017 >> 8) & 0x07 - high address bits for the sensors query address 1017*/
 #define LN_MESS_LEN_PEER 16
 
 //Version
@@ -92,11 +93,11 @@ lnMsg       SendPacketSensor ;
 SV_STATUS   svStatus = SV_OK;
 boolean     deferredProcessingNeeded = false;
 
-uint8_t ucAddrHi = 0;
-uint8_t ucAddrLo = 0;
+uint8_t ucBoardAddrHi = 1;  //board address high; always 1
+uint8_t ucBoardAddrLo = 88;  //board address low; default 88
 
-uint8_t ucAddrHiSen = 0;
-uint8_t ucAddrLoSen = 1;
+uint8_t ucAddrHiSen = 0;    //sensor address high
+uint8_t ucAddrLoSen = 1;    //sensor address low
 uint8_t ucSenType = 0x0F; //input
 uint16_t uiAddrSenFull;
 
@@ -126,15 +127,15 @@ void setup() {
     sv.init(MANUF_ID, BOARD_TYPE, 1, 1); //to see if needed just once (saved in EEPROM)
 
     
-    ucAddrHi = sv.readSVStorage(SV_ADDR_NODE_ID_H); //board address high
-    ucAddrLo = sv.readSVStorage(SV_ADDR_NODE_ID_L); //board address low
+    ucBoardAddrHi = sv.readSVStorage(SV_ADDR_NODE_ID_H); //board address high
+    ucBoardAddrLo = sv.readSVStorage(SV_ADDR_NODE_ID_L); //board address low
 
-    if((ucAddrHi == 0xFF) && (ucAddrLo == 0xFF)){ //eeprom empty, first run 
-       ucAddrHi = 1;
-       ucAddrLo = 88;
+    if((ucBoardAddrHi == 0xFF) && (ucBoardAddrLo == 0xFF)){ //eeprom empty, first run 
+       ucBoardAddrHi = 1;
+       ucBoardAddrLo = 88;
 
-       sv.writeSVStorage(SV_ADDR_NODE_ID_H, ucAddrHi );
-       sv.writeSVStorage(SV_ADDR_NODE_ID_L, ucAddrLo);
+       sv.writeSVStorage(SV_ADDR_NODE_ID_H, ucBoardAddrHi );
+       sv.writeSVStorage(SV_ADDR_NODE_ID_L, ucBoardAddrLo);
   
        sv.writeSVStorage(SV_ADDR_SERIAL_NUMBER_H, 0x56);
        sv.writeSVStorage(SV_ADDR_SERIAL_NUMBER_L, 0x78);
@@ -259,7 +260,7 @@ void loop() {
 
   } //if ( mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){    
   LnPacket = LocoNet.receive() ;
-  if( LnPacket && ((LnPacket->data[2] != ucAddrLo) || (LnPacket->data[4] != ucAddrHi))) { //new message sent by other
+  if( LnPacket && ((LnPacket->data[2] != ucBoardAddrLo) || (LnPacket->data[4] != ucBoardAddrHi))) { //new message sent by other
      uint8_t msgLen = getLnMsgSize(LnPacket);
      
      //Change the board & sensor addresses. Changing the board address is working
@@ -330,9 +331,9 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
     unsigned char ucPeerRSvValue = 0;
     unsigned char ucTempData = 0;
     
-    if ((LnRecMsg->data[3] != ucAddrLo) && (LnRecMsg->data[3] != 0)) { //no my low address and no broadcast
+    if ((LnRecMsg->data[3] != ucBoardAddrLo) && (LnRecMsg->data[3] != 0)) { //no my low address and no broadcast
         return (0);
-    } else if ((LnRecMsg->data[4] != ucAddrHi) && (LnRecMsg->data[4] != 0x7F)) {//not my low address and not address programming
+    } else if ((LnRecMsg->data[4] != ucBoardAddrHi) && (LnRecMsg->data[4] != 0x7F)) {//not my low address and not address programming
         return (0);
     } else {//message for me
         cOutBuf->data[0x00] = 0xE5; //allways PEER
@@ -364,19 +365,19 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
         if (ucPeerRCommand == SV_CMD_WRITE) { //write command. Save the new data and answer to sender
             if (ucPeerRSvIndex == 0) { //board address high
                 ucPeerRSvValue &= 0xFE; //LocoHDL is increasing this value with each write cycle
-                cOutBuf->data[0x0B] = ucAddrHi;
+                cOutBuf->data[0x0B] = ucBoardAddrHi;
                 cOutBuf->data[0x0E] = 0;
             } else if (ucPeerRSvIndex == 1) { //new low_address
-                ucAddrLo = ucPeerRSvValue;
+                ucBoardAddrLo = ucPeerRSvValue;
                 // initMessagesArray();
                 cOutBuf->data[0x0B] = 0x7F;
-                ucAddrLo = ucPeerRSvValue;
+                ucBoardAddrLo = ucPeerRSvValue;
                 cOutBuf->data[0x0E] = ucPeerRSvValue;
                 sv.writeSVStorage(SV_ADDR_NODE_ID_L, ucPeerRSvValue); //save the new value
             } else if (ucPeerRSvIndex == 2) { //new high_address
                 if (ucPeerRSvValue != 0x7F) {
                     //initMessagesArray();
-                    ucAddrHi = ucPeerRSvValue;
+                    ucBoardAddrHi = ucPeerRSvValue;
                     sv.writeSVStorage(SV_ADDR_NODE_ID_H, ucPeerRSvValue); //save the new value
                 }
                 cOutBuf->data[0x0B] = 0x7F;
@@ -385,7 +386,7 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
                 if ((ucPeerRSvIndex % 3) != 0) { // do not change the type (leave it as IN)
                     sv.writeSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex % 3), ucPeerRSvValue); //save the new value
                 }
-                cOutBuf->data[0x0B] = ucAddrHi; 
+                cOutBuf->data[0x0B] = ucBoardAddrHi; 
                 ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex % 3));
                 if (ucTempData & 0x80) { //msb==1 => sent in PXCTL2
                    cOutBuf->data[0x0A] |= 0x08; //PXCTL2.3 = D8.7
@@ -417,9 +418,9 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
             cOutBuf->data[0x0E] = ucTempData & 0x7F;
         } //if (cLnBuffer[0x06] == SV_CMD_READ)
 
-        cOutBuf->data[0x02] = ucAddrLo; // src low address;
+        cOutBuf->data[0x02] = ucBoardAddrLo; // src low address;
         cOutBuf->data[0x03] = LnRecMsg->data[0x02]; //dest low addres == received src low address;
-        cOutBuf->data[0x04] = ucAddrHi;
+        cOutBuf->data[0x04] = ucBoardAddrHi;
         cOutBuf->data[0x05] = VER_HIGH; //unsigned char pxct1; (bit 3 = MSBit(b7) version)
         cOutBuf->data[0x06] = ucPeerRCommand; //0x02;  //unsigned char cmd;
         cOutBuf->data[0x07] = ucPeerRSvIndex;
