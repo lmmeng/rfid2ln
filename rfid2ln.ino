@@ -27,8 +27,8 @@
  *             Loconet      Arduino       Arduino   Arduino    Arduino          Arduino
  *             Signal       Uno           Mega      Nano v3    Leonardo/Micro   Pro Micro
  * -----------------------------------------------------------------------------------------
- *             RX           ICP           ICP       ICP        ICP (4)          ICP      
- *             TX                                              6                
+ *             RX           ICP           ICP       ICP (8)   ICP (4)          ICP      
+ *             TX                                        7     6                
  *
  */
 
@@ -38,14 +38,25 @@
 
 //#define _SER_DEBUG
 
-#define RST_PIN         9           /* Configurable, see typical pin layout above*/
-#define SS_PIN          5           /* Configurable, see typical pin layout above*/ 
-                                    /* I'm using the Leonardo board*/
 
 #define MANUF_ID        13          /* DIY DCC*/
 #define BOARD_TYPE      5           /* something for sv.init*/
 
-#define LN_TX_PIN       6           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
+#if ARDUINO >= 10500 //the board naming scheme is supported from Arduino 1.5.0
+ #if defined(ARDUINO_AVR_UNO) || defined(ARDUINO_AVR_NANO)
+  #define LN_TX_PIN       7           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
+  #define RST_PIN         9           /* Configurable, see typical pin layout above*/
+  #define SS_PIN         10           /* Configurable, see typical pin layout above*/                                   /* I'm using the Leonardo board*/
+ #elif defined(ARDUINO_AVR_LEONARDO) 
+  #define LN_TX_PIN       6           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
+  #define RST_PIN         9           /* Configurable, see typical pin layout above*/
+  #define SS_PIN          5           /* Configurable, see typical pin layout above*/                                   /* I'm using the Leonardo board*/
+ #endif
+#else //older arduino IDE => initialising each board as it is used. I'm using Leonardo
+  #define LN_TX_PIN       6           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
+  #define RST_PIN         9           /* Configurable, see typical pin layout above*/
+  #define SS_PIN          5           /* Configurable, see typical pin layout above*/                                   /* I'm using the Leonardo board*/
+#endif 
 
     // --------------------------------------------------------
     // OPC_PEER_XFER SV_CMD's
