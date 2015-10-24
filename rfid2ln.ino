@@ -43,6 +43,8 @@
 #define MANUF_ID        13          /* DIY DCC*/
 #define BOARD_TYPE      5           /* something for sv.init*/
 
+#define LN_TX_PIN       6           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
+
     // --------------------------------------------------------
     // OPC_PEER_XFER SV_CMD's
     // --------------------------------------------------------
@@ -123,7 +125,7 @@ void setup() {
 #endif
 
     //initialize the LocoNet interface
-    LocoNet.init();
+    LocoNet.init(LN_TX_PIN); //Always use the explicit naming of the Tx Pin to avoid confusions 
     sv.init(MANUF_ID, BOARD_TYPE, 1, 1); //to see if needed just once (saved in EEPROM)
 
     

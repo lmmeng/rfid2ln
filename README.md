@@ -10,6 +10,8 @@ Requirements:
 <h2><a id="hardware" class="anchor" href="#hardware" aria-hidden="true"><span class="octicon octicon-link"></span></a>Hardware</h2>
 
 To connect the Arduino board to the Loconet (R) bus, use the LocoNet interface presented on mrrwa.org (http://mrrwa.org/loconet-interface/).
+As stated in the description on the mrrwa.org site, the Loconet Rx pin should be connected to the Arduino's ICP pin (see the arduino.cc site for details on each board).
+The Tx can be freely choosed among the Arduino pins, but the sketch defaults to the Pin 6. If you use another one, you should update the LN_TX_PIN define in the sketch.
 
 The connections between the Arduino and the MFRC522 board are described in the code (and on MFRC522 library's site  at https://github.com/miguelbalboa/rfid).
 
