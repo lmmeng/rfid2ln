@@ -20,12 +20,14 @@
  * SPI MISO    MISO         12 / ICSP-1   50        D12        ICSP-1           14
  * SPI SCK     SCK          13 / ICSP-3   52        D13        ICSP-3           15
  * 
- * Typical pin layout used - Loconet:
+ * Typical pin layout used - Loconet: 
+ * RX = ICP pin (see arduino.cc for details on each board). I'm using the Leonardo board => Pin4
+ * TX can be freely choosed, but the LN_TX_PIN define (row 48) should be updated. 
  * -----------------------------------------------------------------------------------------
  *             Loconet      Arduino       Arduino   Arduino    Arduino          Arduino
  *             Signal       Uno           Mega      Nano v3    Leonardo/Micro   Pro Micro
  * -----------------------------------------------------------------------------------------
- *             RX                                              4                
+ *             RX           ICP           ICP       ICP        ICP (4)          ICP      
  *             TX                                              6                
  *
  */
