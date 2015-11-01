@@ -127,15 +127,28 @@ uint8_t uiLnSendMsbIdx = 12;
 uint8_t uiStartChkSen;
 
 uint8_t oldUid[UID_LEN] = {0};
+
+boolean bSerialOk=false;
   
 /**
  * Initialize.
  */
 void setup() {
-#ifdef _SER_DEBUG
+//#ifdef _SER_DEBUG
+    uint32_t uiStartTimer;
+    uint16_t uiElapsedDelay;
+    uint16_t uiSerialOKDelay = 5000;
+    
     Serial.begin(115200); // Initialize serial communications with the PC
-    while (!Serial);    // Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4)
-#endif
+    uiStartTimer = millis();
+    do{  //wait for the serial interface, but maximal 1 second.
+        uiElapsedDelay = millis() - uiStartTimer;
+    } while ((!Serial) && (uiElapsedDelay < uiSerialOKDelay));    // Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4)
+
+    if(Serial) { //serial interface ok
+       bSerialOk = true;
+    }
+//#endif
 
     //initialize the LocoNet interface
     LocoNet.init(LN_TX_PIN); //Always use the explicit naming of the Tx Pin to avoid confusions 
@@ -184,16 +197,22 @@ void setup() {
     setMessageHeader();
     uiStartChkSen = SendPacketSensor.data[uiLnSendCheckSumIdx];
 
-#ifdef _SER_DEBUG
+//#ifdef _SER_DEBUG
+    if(bSerialOk){
         // Show some details of the loconet setup
-        Serial.print(F("Full sen addr: "));
-        Serial.print(uiAddrSenFull);
-        Serial.print(F(" Sensor AddrH: "));
+        Serial.print(F("Board address: "));
+        Serial.print(ucBoardAddrHi);
+        Serial.print(F(" - "));
+        Serial.println(ucBoardAddrLo);
+        Serial.print(F("Full sensor addr: "));
+        Serial.println(uiAddrSenFull);
+        Serial.print(F("Sensor AddrH: "));
         Serial.print(ucAddrHiSen);
         Serial.print(F(" Sensor AddrL: "));
         Serial.print(ucAddrLoSen);
         Serial.println();
-#endif
+    }
+//#endif
     
 }
 
@@ -211,12 +230,14 @@ void loop() {
 
   if ( mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){  
      if(!delaying){   //Avoid to many/to fast reads of the same tag
-#ifdef _SER_DEBUG
         // Show some details of the PICC (that is: the tag/card)
-        Serial.print(F("Card UID:"));
-        dump_byte_array(mfrc522.uid.uidByte, mfrc522.uid.size);
-        Serial.println();
+        if(bSerialOk){
+           Serial.print(F("Card UID:"));
+           dump_byte_array(mfrc522.uid.uidByte, mfrc522.uid.size);
+           Serial.println();
+        }
 
+#ifdef _SER_DEBUG
         // Show some details of the loconet setup
         Serial.print(F("Full sen addr: "));
         Serial.print(uiAddrSenFull);
@@ -247,12 +268,13 @@ void loop() {
 
         SendPacketSensor.data[uiLnSendCheckSumIdx] ^= SendPacketSensor.data[uiLnSendMsbIdx]; //calculate the checksumm
 
-#ifdef _SER_DEBUG
-        // Show some details of the PICC (that is: the tag/card)
-        Serial.print(F("LN send mess:"));
-        dump_byte_array(SendPacketSensor.data, uiLnSendLength);
-        Serial.println();
-#endif
+//#ifdef _SER_DEBUG
+        if(bSerialOk){
+           Serial.print(F("LN send mess:"));
+           dump_byte_array(SendPacketSensor.data, uiLnSendLength);
+           Serial.println();
+        }
+//#endif
         LocoNet.send( &SendPacketSensor, uiLnSendLength );    
 
         copyUid(mfrc522.uid.uidByte, oldUid, mfrc522.uid.size);
