@@ -35,6 +35,7 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <LocoNet.h>
+#include <EEPROM.h>
 
 //#define _SER_DEBUG
 
@@ -150,6 +151,29 @@ void setup() {
     }
 //#endif
 
+    if(bSerialOk){
+       Serial.println(F("************************************************"));
+    }
+    boolean bVersionOK = true;
+    uint8_t boardVer[] = "RFID2LN V1";
+    char verLen = sizeof(boardVer);
+    char ch;
+    for(uint8_t i = 0; i<verLen; i++){
+        ch = EEPROM.read(255 - verLen + i);
+        if(ch != boardVer[i]){
+           bVersionOK = false;
+           break;
+        } else {
+           if(Serial) { //serial interface ok
+              Serial.print(ch);
+           }
+        }
+    }
+    
+    if(bSerialOk){
+       Serial.println();
+    }
+   
     //initialize the LocoNet interface
     LocoNet.init(LN_TX_PIN); //Always use the explicit naming of the Tx Pin to avoid confusions 
     sv.init(MANUF_ID, BOARD_TYPE, 1, 1); //to see if needed just once (saved in EEPROM)
@@ -158,7 +182,13 @@ void setup() {
     ucBoardAddrHi = sv.readSVStorage(SV_ADDR_NODE_ID_H); //board address high
     ucBoardAddrLo = sv.readSVStorage(SV_ADDR_NODE_ID_L); //board address low
 
-    if((ucBoardAddrHi == 0xFF) && (ucBoardAddrLo == 0xFF)){ //eeprom empty, first run 
+//    if((ucBoardAddrHi == 0xFF) && (ucBoardAddrLo == 0xFF)){ //eeprom empty, first run 
+    if(bVersionOK == false){   //not the right content in eeprom
+
+       for(uint8_t i = 0; i<verLen; i++){
+           EEPROM.write(255 - verLen + i, boardVer[i]);
+       }
+
        ucBoardAddrHi = 1;
        ucBoardAddrLo = 88;
 
@@ -213,7 +243,9 @@ void setup() {
         Serial.println();
     }
 //#endif
-    
+    if(bSerialOk){
+       Serial.println(F("************************************************"));  
+    }  
 }
 
 /**
