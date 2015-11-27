@@ -42,22 +42,24 @@
 #define MANUF_ID        13          /* DIY DCC*/
 #define BOARD_TYPE      5           /* something for sv.init*/
 
-#define NR_OF_PORTS     1
+#define NR_OF_PORTS     2
+
+#define UNO_LM 
 
 #if ARDUINO >= 10500 //the board naming scheme is supported from Arduino 1.5.0
- #if defined(ARDUINO_AVR_UNO) || defined(ARDUINO_AVR_NANO)
+ #if (defined(ARDUINO_AVR_UNO) && !defined(UNO_LM)) || defined(ARDUINO_AVR_NANO)
   #define LN_TX_PIN       7           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
   #define RST_PIN         9           /* Configurable, see typical pin layout above*/
-  #define SS_1_PIN         10           /* Configurable, see typical pin layout above*/   
+  #define SS_1_PIN       10           /* Configurable, see typical pin layout above*/   
   #if NR_OF_PORTS >= 2  
-     #define SS_2_PIN         2           /* Configurable, see typical pin layout above*/   
+     #define SS_2_PIN     2           /* Configurable, see typical pin layout above*/   
   #endif     
-#elif defined(ARDUINO_AVR_LEONARDO) 
+#elif defined(ARDUINO_AVR_LEONARDO) || defined(UNO_LM) 
   #define LN_TX_PIN       6           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
   #define RST_PIN         9           /* Configurable, see typical pin layout above*/
-  #define SS_1_PIN         5           /* Configurable, see typical pin layout above*/   
+  #define SS_1_PIN        5           /* Configurable, see typical pin layout above*/   
   #if NR_OF_PORTS >= 2  
-     #define SS_2_PIN         2           /* Configurable, see typical pin layout above*/   
+     #define SS_2_PIN     2           /* Configurable, see typical pin layout above*/   
   #endif     
  #endif
 #else //older arduino IDE => initialising each board as it is used. I'm using Leonardo
@@ -140,7 +142,7 @@ uint8_t uiLnSendLength = 14; //14 bytes
 uint8_t uiLnSendMsbIdx = 12;
 uint8_t uiStartChkSen;
 
-uint8_t oldUid[UID_LEN] = {0};
+uint8_t oldUid[NR_OF_PORTS][UID_LEN] = {0};
 
 boolean bSerialOk=false;
   
@@ -206,8 +208,11 @@ void setup() {
     uiStartChkSen = SendPacketSensor.data[uiLnSendCheckSumIdx];
     
     SPI.begin();        // Init SPI bus
-//    mfrc522.PCD_Init(); // Init MFRC522 card
-
+    
+    mfrc522_1.PCD_Init(); // Init first MFRC522 card
+#if NR_OF_PORTS >= 2
+    mfrc522_2.PCD_Init(); // Init 2nd MFRC522 card
+#endif
     // Prepare the key (used both as key A and as key B)
     // using FFFFFFFFFFFFh which is the default at chip delivery from the factory
     for (byte i = 0; i < 6; i++) {
@@ -249,29 +254,28 @@ void loop() {
   SV_STATUS svStatus;
   unsigned long uiStartTime;
   unsigned long uiActTime;
-  bool delaying;
   unsigned char i=0;
   unsigned char j=0;  
   uint16_t uiDelayTime = 1000;
 
-#if 0
-  if ( mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){  
+  if ( mfrc522_1.PICC_IsNewCardPresent() && mfrc522_1.PICC_ReadCardSerial()){  
+     static bool delaying = false;
      if(!delaying){   //Avoid to many/to fast reads of the same tag
         // Show some details of the PICC (that is: the tag/card)
         if(bSerialOk){
            Serial.print(F("Card UID:"));
-           dump_byte_array(mfrc522.uid.uidByte, mfrc522.uid.size);
+           dump_byte_array(mfrc522_1.uid.uidByte, mfrc522_1.uid.size);
            Serial.println();
         }
 
 #ifdef _SER_DEBUG
         // Show some details of the loconet setup
         Serial.print(F("Full sen addr: "));
-        Serial.print(uiAddrSenFull);
+        Serial.print(uiAddrSenFull[0]);
         Serial.print(F("Sensor AddrH: "));
-        Serial.print(ucAddrHiSen);
+        Serial.print(ucAddrHiSen[0]);
         Serial.print(F(" Sensor AddrL: "));
-        Serial.print(ucAddrLoSen);
+        Serial.print(ucAddrLoSen[0]);
         Serial.println();
 #endif
 
@@ -281,10 +285,10 @@ void loop() {
         SendPacketSensor.data[uiLnSendCheckSumIdx]= uiStartChkSen; //start with header check summ
         SendPacketSensor.data[uiLnSendMsbIdx]=0; //clear the byte for the ms bits
         for(i=0, j=5; i< UID_LEN; i++, j++){
-           if(mfrc522.uid.size > i){
-              SendPacketSensor.data[j] = mfrc522.uid.uidByte[i] & 0x7F; //loconet bytes haver only 7 bits;
+           if(mfrc522_1.uid.size > i){
+              SendPacketSensor.data[j] = mfrc522_1.uid.uidByte[i] & 0x7F; //loconet bytes haver only 7 bits;
                                                                // MSbit is transmited in the SendPacket.data[10]
-              if(mfrc522.uid.uidByte[i] & 0x80){
+              if(mfrc522_1.uid.uidByte[i] & 0x80){
                  SendPacketSensor.data[uiLnSendMsbIdx] |= 1 << i;
               }
               SendPacketSensor.data[uiLnSendCheckSumIdx] ^= SendPacketSensor.data[j]; //calculate the checksumm
@@ -295,20 +299,19 @@ void loop() {
 
         SendPacketSensor.data[uiLnSendCheckSumIdx] ^= SendPacketSensor.data[uiLnSendMsbIdx]; //calculate the checksumm
 
-//#ifdef _SER_DEBUG
         if(bSerialOk){
            Serial.print(F("LN send mess:"));
            dump_byte_array(SendPacketSensor.data, uiLnSendLength);
            Serial.println();
         }
-//#endif
+
         LocoNet.send( &SendPacketSensor, uiLnSendLength );    
 
-        copyUid(mfrc522.uid.uidByte, oldUid, mfrc522.uid.size);
+        copyUid(mfrc522_1.uid.uidByte, oldUid[0], mfrc522_1.uid.size);
         
      } else { //if(!delaying)
 	       uiActTime = millis();	
-         if(compareUid(	mfrc522.uid.uidByte, oldUid, mfrc522.uid.size)){//same UID	
+         if(compareUid(	mfrc522_1.uid.uidByte, oldUid[0], mfrc522_1.uid.size)){//same UID	
 	          if((uiActTime - uiStartTime) > uiDelayTime){
 	             delaying = false;
             } //if((uiActTime
@@ -318,13 +321,83 @@ void loop() {
      } //else 
      
      // Halt PICC
-     mfrc522.PICC_HaltA();
+     mfrc522_1.PICC_HaltA();
      // Stop encryption on PCD
-     mfrc522.PCD_StopCrypto1();
+     mfrc522_1.PCD_StopCrypto1();
 
-  } //if ( mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){    
+  } //if ( mfrc522_1.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){
+      
+#if NR_OF_PORTS >= 2
+  if ( mfrc522_2.PICC_IsNewCardPresent() && mfrc522_2.PICC_ReadCardSerial()){  
+     static bool delaying = false;
+     if(!delaying){   //Avoid to many/to fast reads of the same tag
+        // Show some details of the PICC (that is: the tag/card)
+        if(bSerialOk){
+           Serial.print(F("Card UID:"));
+           dump_byte_array(mfrc522_2.uid.uidByte, mfrc522_2.uid.size);
+           Serial.println();
+        }
 
+#ifdef _SER_DEBUG
+        // Show some details of the loconet setup
+        Serial.print(F("Full sen addr: "));
+        Serial.print(uiAddrSenFull[1]);
+        Serial.print(F("Sensor AddrH: "));
+        Serial.print(ucAddrHiSen[1]);
+        Serial.print(F(" Sensor AddrL: "));
+        Serial.print(ucAddrLoSen[1]);
+        Serial.println();
 #endif
+
+        uiStartTime = millis();
+        delaying = true;
+
+        SendPacketSensor.data[uiLnSendCheckSumIdx]= uiStartChkSen; //start with header check summ
+        SendPacketSensor.data[uiLnSendMsbIdx]=0; //clear the byte for the ms bits
+        for(i=0, j=5; i< UID_LEN; i++, j++){
+           if(mfrc522_2.uid.size > i){
+              SendPacketSensor.data[j] = mfrc522_2.uid.uidByte[i] & 0x7F; //loconet bytes haver only 7 bits;
+                                                               // MSbit is transmited in the SendPacket.data[10]
+              if(mfrc522_2.uid.uidByte[i] & 0x80){
+                 SendPacketSensor.data[uiLnSendMsbIdx] |= 1 << i;
+              }
+              SendPacketSensor.data[uiLnSendCheckSumIdx] ^= SendPacketSensor.data[j]; //calculate the checksumm
+           } else {
+              SendPacketSensor.data[j] = 0;
+           }        
+        } //for(i=0
+
+        SendPacketSensor.data[uiLnSendCheckSumIdx] ^= SendPacketSensor.data[uiLnSendMsbIdx]; //calculate the checksumm
+
+        if(bSerialOk){
+           Serial.print(F("LN send mess:"));
+           dump_byte_array(SendPacketSensor.data, uiLnSendLength);
+           Serial.println();
+        }
+
+        LocoNet.send( &SendPacketSensor, uiLnSendLength );    
+
+        copyUid(mfrc522_2.uid.uidByte, oldUid[1], mfrc522_2.uid.size);
+        
+     } else { //if(!delaying)
+         uiActTime = millis();  
+         if(compareUid( mfrc522_2.uid.uidByte, oldUid[1], mfrc522_2.uid.size)){//same UID 
+            if((uiActTime - uiStartTime) > uiDelayTime){
+               delaying = false;
+            } //if((uiActTime
+         } else { //new UID
+            delaying = false;
+         }
+     } //else 
+     
+     // Halt PICC
+     mfrc522_2.PICC_HaltA();
+     // Stop encryption on PCD
+     mfrc522_2.PCD_StopCrypto1();
+
+  } //if ( mfrc522_2.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){
+#endif
+
   LnPacket = LocoNet.receive() ;
   if( LnPacket && ((LnPacket->data[2] != ucBoardAddrLo) || (LnPacket->data[4] != ucBoardAddrHi))) { //new message sent by other
      uint8_t msgLen = getLnMsgSize(LnPacket);
@@ -335,7 +408,8 @@ void loop() {
          
         processXferMess(LnPacket, &SendPacket);
         LocoNet.send( &SendPacket );    
-            
+
+#if 0            
         // Rocrail compatible addressing
 //        uiAddrSenFull = 256 * (sv.readSVStorage(SV_ADDR_USER_BASE+2) & 0x0F) + 2 * sv.readSVStorage(SV_ADDR_USER_BASE + 1) +
 //                        (sv.readSVStorage(SV_ADDR_USER_BASE+2) >> 5) + 1;
@@ -353,6 +427,7 @@ void loop() {
            ucAddrLoSen[i] = uiAddrSenFull[i] & 0x7F;        
            setMessageHeader(i); //if the sensor address was changed, update the header                
         }
+#endif        
      } //if(msgLen == 0x10)
   }
 }
@@ -460,10 +535,10 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
                 cOutBuf->data[0x0E] = 0x7F;
             } else if (ucPeerRSvIndex < (NR_OF_PORTS * 3 + 3)) { //nr_of_ports (1) * 3 register starting with the address 3
                 if ((ucPeerRSvIndex % 3) != 0) { // do not change the type (leave it as IN)
-                    sv.writeSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex % 3), ucPeerRSvValue); //save the new value
+                    sv.writeSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex, ucPeerRSvValue); //save the new value
                 }
                 cOutBuf->data[0x0B] = ucBoardAddrHi; 
-                ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex % 3));
+                ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex);
                 if (ucTempData & 0x80) { //msb==1 => sent in PXCTL2
                    cOutBuf->data[0x0A] |= 0x08; //PXCTL2.3 = D8.7
                 }
@@ -476,18 +551,18 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
         if ((ucPeerRCommand == SV_CMD_READ) || (ucPeerRCommand == 0)) { //read command. Answer to sender
             cOutBuf->data[0x0B] = 0x01;
 
-            ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex-3));
+            ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex);
             if (ucTempData & 0x80) { //msb==1 => sent in PXCTL2
                 cOutBuf->data[0x0A] |= 0x02; //PXCTL2.1 = D6.7
             }
             cOutBuf->data[0x0C] = ucTempData & 0x7F;
 
-            ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex-3) + 1);
+            ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex + 1);
             if (ucTempData & 0x80) { //msb==1 => sent in PXCTL2
                 cOutBuf->data[0x0A] |= 0x04; //PXCTL2.2 = D7.7
             }
             cOutBuf->data[0x0D] = ucTempData & 0x7F;
-            ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex-3) + 2);
+            ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex + 2);
             if (ucTempData & 0x80) { //msb==1 => sent in PXCTL2
                 cOutBuf->data[0x0A] |= 0x08; //PXCTL2.3 = D8.7
             }
