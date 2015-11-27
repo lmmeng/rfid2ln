@@ -42,20 +42,31 @@
 #define MANUF_ID        13          /* DIY DCC*/
 #define BOARD_TYPE      5           /* something for sv.init*/
 
+#define NR_OF_PORTS     1
+
 #if ARDUINO >= 10500 //the board naming scheme is supported from Arduino 1.5.0
  #if defined(ARDUINO_AVR_UNO) || defined(ARDUINO_AVR_NANO)
   #define LN_TX_PIN       7           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
   #define RST_PIN         9           /* Configurable, see typical pin layout above*/
-  #define SS_PIN         10           /* Configurable, see typical pin layout above*/                                   /* I'm using the Leonardo board*/
- #elif defined(ARDUINO_AVR_LEONARDO) 
+  #define SS_1_PIN         10           /* Configurable, see typical pin layout above*/   
+  #if NR_OF_PORTS >= 2  
+     #define SS_2_PIN         2           /* Configurable, see typical pin layout above*/   
+  #endif     
+#elif defined(ARDUINO_AVR_LEONARDO) 
   #define LN_TX_PIN       6           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
   #define RST_PIN         9           /* Configurable, see typical pin layout above*/
-  #define SS_PIN          5           /* Configurable, see typical pin layout above*/                                   /* I'm using the Leonardo board*/
+  #define SS_1_PIN         5           /* Configurable, see typical pin layout above*/   
+  #if NR_OF_PORTS >= 2  
+     #define SS_2_PIN         2           /* Configurable, see typical pin layout above*/   
+  #endif     
  #endif
 #else //older arduino IDE => initialising each board as it is used. I'm using Leonardo
   #define LN_TX_PIN       6           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
   #define RST_PIN         9           /* Configurable, see typical pin layout above*/
-  #define SS_PIN          5           /* Configurable, see typical pin layout above*/                                   /* I'm using the Leonardo board*/
+  #define SS_1_PIN         5           /* Configurable, see typical pin layout above*/   
+  #if NR_OF_PORTS >= 2  
+     #define SS_2_PIN         2           /* Configurable, see typical pin layout above*/   
+  #endif     
 #endif 
 
     // --------------------------------------------------------
@@ -93,10 +104,13 @@
 #define VER_LOW         0x01
 #define VER_HIGH        0X00
 
-#define NR_OF_PORTS     1
 #define UID_LEN         7
 
-MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance.
+MFRC522 mfrc522_1(SS_1_PIN, RST_PIN);   // Create the first MFRC522 instance.
+#if NR_OF_PORTS >= 2  
+   MFRC522 mfrc522_2(SS_2_PIN, RST_PIN);   // Create the second MFRC522 instance. 
+#endif     
+
 
 MFRC522::MIFARE_Key key;
 
@@ -111,14 +125,14 @@ boolean     deferredProcessingNeeded = false;
 uint8_t ucBoardAddrHi = 1;  //board address high; always 1
 uint8_t ucBoardAddrLo = 88;  //board address low; default 88
 
-uint8_t ucAddrHiSen = 0;    //sensor address high
-uint8_t ucAddrLoSen = 1;    //sensor address low
-uint8_t ucSenType = 0x0F; //input
-uint16_t uiAddrSenFull;
+uint8_t ucAddrHiSen[NR_OF_PORTS];    //sensor address high
+uint8_t ucAddrLoSen[NR_OF_PORTS];    //sensor address low
+uint8_t ucSenType[NR_OF_PORTS] = {0x0F}; //input
+uint16_t uiAddrSenFull[NR_OF_PORTS];
 
 bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize);
 void copyUid(byte *buffIn, byte *buffOut, byte bufferSize);
-void setMessageHeader(void);
+void setMessageHeader(uint8_t);
 uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *LnSendMsg);
 uint8_t lnCalcCheckSumm(uint8_t *cMessage, uint8_t cMesLen);
 uint8_t uiLnSendCheckSumIdx = 13;
@@ -161,29 +175,38 @@ void setup() {
     if((ucBoardAddrHi == 0xFF) && (ucBoardAddrLo == 0xFF)){ //eeprom empty, first run 
        ucBoardAddrHi = 1;
        ucBoardAddrLo = 88;
-
+          
        sv.writeSVStorage(SV_ADDR_NODE_ID_H, ucBoardAddrHi );
        sv.writeSVStorage(SV_ADDR_NODE_ID_L, ucBoardAddrLo);
   
        sv.writeSVStorage(SV_ADDR_SERIAL_NUMBER_H, 0x56);
        sv.writeSVStorage(SV_ADDR_SERIAL_NUMBER_L, 0x78);
 
-       ucSenType=0x0F;
-       sv.writeSVStorage(SV_ADDR_USER_BASE+2, 0);
-       sv.writeSVStorage(SV_ADDR_USER_BASE+1, 0);
-       sv.writeSVStorage(SV_ADDR_USER_BASE, ucSenType);
+       int iSenAddr = 0;
+       for(int i=0; i<NR_OF_PORTS; i++){
+          iSenAddr = SV_ADDR_USER_BASE + 3*i;         
+          sv.writeSVStorage(iSenAddr+2, i); //should see how send the rocrail the address 2
+          sv.writeSVStorage(iSenAddr+1, 0);
+          sv.writeSVStorage(iSenAddr, ucSenType[i]);
+       }
     }
 
     // Rocrail compatible addressing
-    uiAddrSenFull = 256 * (sv.readSVStorage(SV_ADDR_USER_BASE+2) & 0x0F) + 2 * sv.readSVStorage(SV_ADDR_USER_BASE+1) +
-                    (sv.readSVStorage(SV_ADDR_USER_BASE+2) >> 5) + 1;
+    int iSenAddr = 0;
+    for(int i=0; i<NR_OF_PORTS; i++){
+       iSenAddr = SV_ADDR_USER_BASE + 3*i;         
+       uiAddrSenFull[i] = 256 * (sv.readSVStorage(iSenAddr+2) & 0x0F) + 2 * sv.readSVStorage(iSenAddr+1) +
+                    (sv.readSVStorage(iSenAddr+2) >> 5) + 1;
 
-    ucAddrHiSen = (uiAddrSenFull >> 7) & 0x7F;
-    ucAddrLoSen = uiAddrSenFull & 0x7F;        
-    ucSenType = sv.readSVStorage(SV_ADDR_USER_BASE); //"sensor" type = in
+       ucAddrHiSen[i] = (uiAddrSenFull[i] >> 7) & 0x7F;
+       ucAddrLoSen[i] = uiAddrSenFull[i] & 0x7F;        
+       ucSenType[i] = sv.readSVStorage(iSenAddr); //"sensor" type = in
+       setMessageHeader(i);
+   }
+    uiStartChkSen = SendPacketSensor.data[uiLnSendCheckSumIdx];
     
     SPI.begin();        // Init SPI bus
-    mfrc522.PCD_Init(); // Init MFRC522 card
+//    mfrc522.PCD_Init(); // Init MFRC522 card
 
     // Prepare the key (used both as key A and as key B)
     // using FFFFFFFFFFFFh which is the default at chip delivery from the factory
@@ -194,8 +217,6 @@ void setup() {
     // The message "header" (OPC, length, message type & board address configurated only once at begining
     // or if the address is changed over loconet
 
-    setMessageHeader();
-    uiStartChkSen = SendPacketSensor.data[uiLnSendCheckSumIdx];
 
 //#ifdef _SER_DEBUG
     if(bSerialOk){
@@ -204,13 +225,18 @@ void setup() {
         Serial.print(ucBoardAddrHi);
         Serial.print(F(" - "));
         Serial.println(ucBoardAddrLo);
-        Serial.print(F("Full sensor addr: "));
-        Serial.println(uiAddrSenFull);
-        Serial.print(F("Sensor AddrH: "));
-        Serial.print(ucAddrHiSen);
-        Serial.print(F(" Sensor AddrL: "));
-        Serial.print(ucAddrLoSen);
-        Serial.println();
+        
+        for(int i=0; i<NR_OF_PORTS; i++){
+            Serial.print(F("Full sensor ")); 
+            Serial.print(i);
+            Serial.print(F(" addr: "));
+            Serial.println(uiAddrSenFull[i]);
+            Serial.print(F("Sensor AddrH: "));
+            Serial.print(ucAddrHiSen[i]);
+            Serial.print(F(" Sensor AddrL: "));
+            Serial.print(ucAddrLoSen[i]);
+            Serial.println();
+        }
     }
 //#endif
     
@@ -228,6 +254,7 @@ void loop() {
   unsigned char j=0;  
   uint16_t uiDelayTime = 1000;
 
+#if 0
   if ( mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){  
      if(!delaying){   //Avoid to many/to fast reads of the same tag
         // Show some details of the PICC (that is: the tag/card)
@@ -296,6 +323,8 @@ void loop() {
      mfrc522.PCD_StopCrypto1();
 
   } //if ( mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){    
+
+#endif
   LnPacket = LocoNet.receive() ;
   if( LnPacket && ((LnPacket->data[2] != ucBoardAddrLo) || (LnPacket->data[4] != ucBoardAddrHi))) { //new message sent by other
      uint8_t msgLen = getLnMsgSize(LnPacket);
@@ -308,12 +337,22 @@ void loop() {
         LocoNet.send( &SendPacket );    
             
         // Rocrail compatible addressing
-        uiAddrSenFull = 256 * (sv.readSVStorage(SV_ADDR_USER_BASE+2) & 0x0F) + 2 * sv.readSVStorage(SV_ADDR_USER_BASE + 1) +
-                        (sv.readSVStorage(SV_ADDR_USER_BASE+2) >> 5) + 1;
+//        uiAddrSenFull = 256 * (sv.readSVStorage(SV_ADDR_USER_BASE+2) & 0x0F) + 2 * sv.readSVStorage(SV_ADDR_USER_BASE + 1) +
+//                        (sv.readSVStorage(SV_ADDR_USER_BASE+2) >> 5) + 1;
 
-        ucAddrHiSen = (uiAddrSenFull >> 7) & 0x7F;
-        ucAddrLoSen = uiAddrSenFull & 0x7F;
-        setMessageHeader(); //if the sensor address was changed, update the header                
+//        ucAddrHiSen = (uiAddrSenFull >> 7) & 0x7F;
+//        ucAddrLoSen = uiAddrSenFull & 0x7F;
+
+        int iSenAddr = 0;
+        for(int i=0; i<NR_OF_PORTS; i++){
+           iSenAddr = SV_ADDR_USER_BASE + 3*i;         
+           uiAddrSenFull[i] = 256 * (sv.readSVStorage(iSenAddr+2) & 0x0F) + 2 * sv.readSVStorage(iSenAddr+1) +
+                    (sv.readSVStorage(iSenAddr+2) >> 5) + 1;
+
+           ucAddrHiSen[i] = (uiAddrSenFull[i] >> 7) & 0x7F;
+           ucAddrLoSen[i] = uiAddrSenFull[i] & 0x7F;        
+           setMessageHeader(i); //if the sensor address was changed, update the header                
+        }
      } //if(msgLen == 0x10)
   }
 }
@@ -347,13 +386,13 @@ void copyUid (byte *buffIn, byte *buffOut, byte bufferSize) {
     }
 }
 
-void setMessageHeader(void){
+void setMessageHeader(uint8_t port){
     unsigned char k = 0;
     SendPacketSensor.data[0] = 0xE4; //OPC - variable length message 
     SendPacketSensor.data[1] = uiLnSendLength; //14 bytes length
     SendPacketSensor.data[2] = 0x41; //report type 
-    SendPacketSensor.data[3] = ucAddrHiSen; //sensor address high
-    SendPacketSensor.data[4] = ucAddrLoSen; //sensor address low 
+    SendPacketSensor.data[3] = ucAddrHiSen[port]; //sensor address high
+    SendPacketSensor.data[4] = ucAddrLoSen[port]; //sensor address low 
     
     SendPacketSensor.data[uiLnSendCheckSumIdx]=0xFF;
     for(k=0; k<5;k++){
