@@ -121,6 +121,7 @@ LocoNetSystemVariableClass sv;
 lnMsg       *LnPacket;
 lnMsg       SendPacket ;
 lnMsg       SendPacketSensor ;
+
 SV_STATUS   svStatus = SV_OK;
 boolean     deferredProcessingNeeded = false;
 
@@ -186,7 +187,7 @@ void setup() {
 
        int iSenAddr = 0;
        for(int i=0; i<NR_OF_PORTS; i++){
-          iSenAddr = SV_ADDR_USER_BASE + 3*i;         
+          iSenAddr = SV_ADDR_USER_BASE + 3 + 3*i;         
           sv.writeSVStorage(iSenAddr+2, i); //should see how send the rocrail the address 2
           sv.writeSVStorage(iSenAddr+1, 0);
           sv.writeSVStorage(iSenAddr, ucSenType[i]);
@@ -194,11 +195,11 @@ void setup() {
     }
 
     // Rocrail compatible addressing
-    int iSenAddr = 0;
-    for(int i=0; i<NR_OF_PORTS; i++){
-       iSenAddr = SV_ADDR_USER_BASE + 3*i;         
+    uint8_t iSenAddr = 0;
+    for(uint8_t i=0; i<NR_OF_PORTS; i++){
+       iSenAddr = SV_ADDR_USER_BASE + 3 + 3*i;         
        uiAddrSenFull[i] = 256 * (sv.readSVStorage(iSenAddr+2) & 0x0F) + 2 * sv.readSVStorage(iSenAddr+1) +
-                    (sv.readSVStorage(iSenAddr+2) >> 5) + 1;
+                    (sv.readSVStorage(iSenAddr+2) >> 5) - 1;
 
        ucAddrHiSen[i] = (uiAddrSenFull[i] >> 7) & 0x7F;
        ucAddrLoSen[i] = uiAddrSenFull[i] & 0x7F;        
@@ -305,6 +306,7 @@ void loop() {
            Serial.println();
         }
 
+        setMessageHeader(0); //if the sensor address was changed, update the header   
         LocoNet.send( &SendPacketSensor, uiLnSendLength );    
 
         copyUid(mfrc522_1.uid.uidByte, oldUid[0], mfrc522_1.uid.size);
@@ -375,6 +377,7 @@ void loop() {
            Serial.println();
         }
 
+        setMessageHeader(1); //if the sensor address was changed, update the header   
         LocoNet.send( &SendPacketSensor, uiLnSendLength );    
 
         copyUid(mfrc522_2.uid.uidByte, oldUid[1], mfrc522_2.uid.size);
@@ -409,25 +412,32 @@ void loop() {
         processXferMess(LnPacket, &SendPacket);
         LocoNet.send( &SendPacket );    
 
-#if 0            
-        // Rocrail compatible addressing
 //        uiAddrSenFull = 256 * (sv.readSVStorage(SV_ADDR_USER_BASE+2) & 0x0F) + 2 * sv.readSVStorage(SV_ADDR_USER_BASE + 1) +
 //                        (sv.readSVStorage(SV_ADDR_USER_BASE+2) >> 5) + 1;
 
 //        ucAddrHiSen = (uiAddrSenFull >> 7) & 0x7F;
 //        ucAddrLoSen = uiAddrSenFull & 0x7F;
 
-        int iSenAddr = 0;
-        for(int i=0; i<NR_OF_PORTS; i++){
-           iSenAddr = SV_ADDR_USER_BASE + 3*i;         
+        // Rocrail compatible addressing
+        uint8_t iSenAddr = 0;
+        for(uint8_t i=0; i<NR_OF_PORTS; i++){
+           iSenAddr = SV_ADDR_USER_BASE + 3 + 3*i;         
            uiAddrSenFull[i] = 256 * (sv.readSVStorage(iSenAddr+2) & 0x0F) + 2 * sv.readSVStorage(iSenAddr+1) +
-                    (sv.readSVStorage(iSenAddr+2) >> 5) + 1;
+                    (sv.readSVStorage(iSenAddr+2) >> 5) - 1;
 
            ucAddrHiSen[i] = (uiAddrSenFull[i] >> 7) & 0x7F;
            ucAddrLoSen[i] = uiAddrSenFull[i] & 0x7F;        
-           setMessageHeader(i); //if the sensor address was changed, update the header                
+//           setMessageHeader(i); //if the sensor address was changed, update the header   
+
+           Serial.print(F("Full sen addr: "));
+           Serial.print(uiAddrSenFull[i]);
+           Serial.print(F(" Sensor AddrH: "));
+           Serial.print(ucAddrHiSen[i]);
+           Serial.print(F(" Sensor AddrL: "));
+           Serial.print(ucAddrLoSen[i]);
+           Serial.println();
+                       
         }
-#endif        
      } //if(msgLen == 0x10)
   }
 }
