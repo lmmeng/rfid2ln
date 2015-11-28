@@ -163,15 +163,7 @@ void setup() {
         if(ch != boardVer[i]){
            bVersionOK = false;
            break;
-        } else {
-           if(Serial) { //serial interface ok
-              Serial.print(ch);
-           }
-        }
-    }
-    
-    if(bSerialOk){
-       Serial.println();
+        } 
     }
    
     //initialize the LocoNet interface
@@ -184,6 +176,9 @@ void setup() {
 
 //    if((ucBoardAddrHi == 0xFF) && (ucBoardAddrLo == 0xFF)){ //eeprom empty, first run 
     if(bVersionOK == false){   //not the right content in eeprom
+       if(bSerialOk) { //serial interface ok
+          Serial.println(F("First run. Write the default values in EEPROM"));
+       }      
 
        for(uint8_t i = 0; i<verLen; i++){
            EEPROM.write(255 - verLen + i, boardVer[i]);
@@ -202,6 +197,13 @@ void setup() {
        sv.writeSVStorage(SV_ADDR_USER_BASE+2, 0);
        sv.writeSVStorage(SV_ADDR_USER_BASE+1, 0);
        sv.writeSVStorage(SV_ADDR_USER_BASE, ucSenType);
+    } else {
+       if(bSerialOk) { //serial interface ok
+          for(uint8_t i = 0; i<verLen; i++){
+             Serial.print((char)boardVer[i]);
+          }
+       }
+       Serial.println();
     }
 
     // Rocrail compatible addressing
