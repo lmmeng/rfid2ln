@@ -34,7 +34,7 @@
 #define MANUF_ID        13          /* DIY DCC*/
 #define BOARD_TYPE      5           /* something for sv.init*/
 
-#define UNO_LM
+//#define UNO_LM
 
 #if ARDUINO >= 10500 //the board naming scheme is supported from Arduino 1.5.0
  #if (defined(ARDUINO_AVR_UNO) && !defined(UNO_LM)) || defined(ARDUINO_AVR_NANO)
