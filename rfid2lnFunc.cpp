@@ -225,7 +225,7 @@ void boardSetup(void){
        for(int i=0; i<NR_OF_PORTS; i++){
           ucSenType[i]=0x0F;
           iSenAddr = SV_ADDR_USER_BASE + 3 + 3*i;         
-          sv.writeSVStorage(iSenAddr+2, i); //should see how send the rocrail the address 2
+          sv.writeSVStorage(iSenAddr+2, i*0x20); //1 for port1, 2 for port 2
           sv.writeSVStorage(iSenAddr+1, 0);
           sv.writeSVStorage(iSenAddr, ucSenType[i]);
        }
@@ -253,7 +253,7 @@ void calcSenAddr(uint8_t port){
     
        iSenAddr = SV_ADDR_USER_BASE + 3 + 3*port;         
        uiAddrSenFull[port] = 256 * (sv.readSVStorage(iSenAddr+2) & 0x0F) + 2 * sv.readSVStorage(iSenAddr+1) +
-                    (sv.readSVStorage(iSenAddr+2) >> 5) - 1;
+                    (sv.readSVStorage(iSenAddr+2) >> 5) + 1;
 
        ucAddrHiSen[port] = (uiAddrSenFull[port] >> 7) & 0x7F;
        ucAddrLoSen[port] = uiAddrSenFull[port] & 0x7F;        

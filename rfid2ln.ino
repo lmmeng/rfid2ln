@@ -39,6 +39,7 @@
 #include <EEPROM.h>
 
 //#define _SER_DEBUG
+#define EE_ERASE   0
 
 MFRC522 mfrc522_1(SS_1_PIN, RST_PIN);   // Create the first MFRC522 instance.
 #if NR_OF_PORTS >= 2  
@@ -97,6 +98,12 @@ void setup() {
     //initialize the LocoNet interface
     LocoNet.init(LN_TX_PIN); //Always use the explicit naming of the Tx Pin to avoid confusions 
     sv.init(MANUF_ID, BOARD_TYPE, 1, 1); //to see if needed just once (saved in EEPROM)
+
+#if EE_ERASE
+       for(uint8_t i = 0; i<11; i++){
+           EEPROM.write(255 - 11 + i, 0xff);
+       }
+#endif
 
     boardSetup();
     calcSenAddr(0);
