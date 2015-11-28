@@ -228,9 +228,10 @@ void boardSetup(void){
        sv.writeSVStorage(SV_ADDR_SERIAL_NUMBER_L, 0x78);
 
        ucSenType=0x0F;
-       sv.writeSVStorage(SV_ADDR_USER_BASE+2, 0);
-       sv.writeSVStorage(SV_ADDR_USER_BASE+1, 0);
-       sv.writeSVStorage(SV_ADDR_USER_BASE, ucSenType);
+       uint8_t iSenAddr = SV_ADDR_USER_BASE + 3; 
+       sv.writeSVStorage(iSenAddr+2, 0);
+       sv.writeSVStorage(iSenAddr+1, 0);
+       sv.writeSVStorage(iSenAddr, ucSenType);
     } else {
        if(bSerialOk) { //serial interface ok
           for(uint8_t i = 0; i<verLen; i++){
@@ -251,11 +252,10 @@ void boardSetup(void){
  * Needed at the begining and after the sensor address reprogramming over Loconet
  */
 void calcSenAddr(void){
-    uint8_t iSenAddr = 0;
-    iSenAddr = SV_ADDR_USER_BASE + 3;         
+    uint8_t iSenAddr = SV_ADDR_USER_BASE + 3;         
     // Rocrail compatible addressing
     uiAddrSenFull = 256 * (sv.readSVStorage(iSenAddr+2) & 0x0F) + 2 * sv.readSVStorage(iSenAddr+1) +
-                    (sv.readSVStorage(iSenAddr+2) >> 5) - 1;
+                    (sv.readSVStorage(iSenAddr+2) >> 5) +1;
 
     ucAddrHiSen = (uiAddrSenFull >> 7) & 0x7F;
     ucAddrLoSen = uiAddrSenFull & 0x7F;        

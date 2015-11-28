@@ -91,6 +91,11 @@ void setup() {
     LocoNet.init(LN_TX_PIN); //Always use the explicit naming of the Tx Pin to avoid confusions 
     sv.init(MANUF_ID, BOARD_TYPE, 1, 1); //to see if needed just once (saved in EEPROM)
 
+
+       for(uint8_t i = 0; i<11; i++){
+           EEPROM.write(255 - 11 + i, 0xff);
+       }
+
     boardSetup();
     calcSenAddr();
     
