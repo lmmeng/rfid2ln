@@ -124,10 +124,10 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
                 cOutBuf->data[0x0E] = 0x7F;
             } else if (ucPeerRSvIndex < (NR_OF_PORTS * 3 + 3)) { //nr_of_ports (1) * 3 register starting with the address 3
                 if ((ucPeerRSvIndex % 3) != 0) { // do not change the type (leave it as IN)
-                    sv.writeSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex % 3), ucPeerRSvValue); //save the new value
+                    sv.writeSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex, ucPeerRSvValue); //save the new value
                 }
                 cOutBuf->data[0x0B] = ucBoardAddrHi; 
-                ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex % 3));
+                ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex);
                 if (ucTempData & 0x80) { //msb==1 => sent in PXCTL2
                    cOutBuf->data[0x0A] |= 0x08; //PXCTL2.3 = D8.7
                 }
@@ -140,18 +140,18 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
         if ((ucPeerRCommand == SV_CMD_READ) || (ucPeerRCommand == 0)) { //read command. Answer to sender
             cOutBuf->data[0x0B] = 0x01;
 
-            ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex-3));
+            ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex);
             if (ucTempData & 0x80) { //msb==1 => sent in PXCTL2
                 cOutBuf->data[0x0A] |= 0x02; //PXCTL2.1 = D6.7
             }
             cOutBuf->data[0x0C] = ucTempData & 0x7F;
 
-            ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex-3) + 1);
+            ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex + 1);
             if (ucTempData & 0x80) { //msb==1 => sent in PXCTL2
                 cOutBuf->data[0x0A] |= 0x04; //PXCTL2.2 = D7.7
             }
             cOutBuf->data[0x0D] = ucTempData & 0x7F;
-            ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + (ucPeerRSvIndex-3) + 2);
+            ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex + 2);
             if (ucTempData & 0x80) { //msb==1 => sent in PXCTL2
                 cOutBuf->data[0x0A] |= 0x08; //PXCTL2.3 = D8.7
             }
@@ -251,13 +251,15 @@ void boardSetup(void){
  * Needed at the begining and after the sensor address reprogramming over Loconet
  */
 void calcSenAddr(void){
+    uint8_t iSenAddr = 0;
+    iSenAddr = SV_ADDR_USER_BASE + 3;         
     // Rocrail compatible addressing
-    uiAddrSenFull = 256 * (sv.readSVStorage(SV_ADDR_USER_BASE+2) & 0x0F) + 2 * sv.readSVStorage(SV_ADDR_USER_BASE+1) +
-                    (sv.readSVStorage(SV_ADDR_USER_BASE+2) >> 5) + 1;
+    uiAddrSenFull = 256 * (sv.readSVStorage(iSenAddr+2) & 0x0F) + 2 * sv.readSVStorage(iSenAddr+1) +
+                    (sv.readSVStorage(iSenAddr+2) >> 5) - 1;
 
     ucAddrHiSen = (uiAddrSenFull >> 7) & 0x7F;
     ucAddrLoSen = uiAddrSenFull & 0x7F;        
-    ucSenType = sv.readSVStorage(SV_ADDR_USER_BASE); //"sensor" type = in  
+    ucSenType = sv.readSVStorage(iSenAddr); //"sensor" type = in  
 }
 
 void printSensorData(void){
