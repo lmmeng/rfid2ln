@@ -39,6 +39,7 @@
 #include "rfid2ln.h"
 
 //#define _SER_DEBUG
+#define EE_ERASE  0
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);   // Create MFRC522 instance.
 
@@ -91,10 +92,11 @@ void setup() {
     LocoNet.init(LN_TX_PIN); //Always use the explicit naming of the Tx Pin to avoid confusions 
     sv.init(MANUF_ID, BOARD_TYPE, 1, 1); //to see if needed just once (saved in EEPROM)
 
-
+#if EE_ERASE
        for(uint8_t i = 0; i<11; i++){
            EEPROM.write(255 - 11 + i, 0xff);
        }
+#endif
 
     boardSetup();
     calcSenAddr();
