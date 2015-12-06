@@ -7,7 +7,8 @@
  * Signal      Pin          Pin           Pin       Pin        Pin              Pin
  * -----------------------------------------------------------------------------------------
  * RST/Reset   RST          9             5         D9         RESET/ICSP-5     RST
- * SPI SS      SDA(SS)      10            53        D10        5                10
+ * SPI SS 1    SDA(SS)      10            53        D10        5                10
+ * SPI SS 2    SDA(SS)      10            53        D10        3                10
  * SPI MOSI    MOSI         11 / ICSP-4   51        D11        ICSP-4           16
  * SPI MISO    MISO         12 / ICSP-1   50        D12        ICSP-1           14
  * SPI SCK     SCK          13 / ICSP-3   52        D13        ICSP-3           15
@@ -34,31 +35,25 @@
 #define MANUF_ID        13          /* DIY DCC*/
 #define BOARD_TYPE      5           /* something for sv.init*/
 
-//#define UNO_LM
+#define UNO_LM /*my special UNO connections, to can use the same adaptor as for leonardo*/
 
 #if ARDUINO >= 10500 //the board naming scheme is supported from Arduino 1.5.0
  #if (defined(ARDUINO_AVR_UNO) && !defined(UNO_LM)) || defined(ARDUINO_AVR_NANO)
   #define LN_TX_PIN       7           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
   #define RST_PIN         9           /* Configurable, see typical pin layout above*/
   #define SS_1_PIN       10           /* Configurable, see typical pin layout above*/   
-  #if NR_OF_PORTS >= 2  
-     #define SS_2_PIN     2           /* Configurable, see typical pin layout above*/   
-  #endif     
+  #define SS_2_PIN        3           /* Configurable, see typical pin layout above*/   
 #elif defined(ARDUINO_AVR_LEONARDO) || defined(UNO_LM) 
   #define LN_TX_PIN       6           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
   #define RST_PIN         9           /* Configurable, see typical pin layout above*/
   #define SS_1_PIN        5           /* Configurable, see typical pin layout above*/   
-  #if NR_OF_PORTS >= 2  
-     #define SS_2_PIN     2           /* Configurable, see typical pin layout above*/   
+  #define SS_2_PIN        3           /* Configurable, see typical pin layout above*/   
   #endif     
- #endif
 #else //older arduino IDE => initialising each board as it is used. I'm using Leonardo
   #define LN_TX_PIN       6           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
   #define RST_PIN         9           /* Configurable, see typical pin layout above*/
   #define SS_1_PIN        5           /* Configurable, see typical pin layout above*/   
-  #if NR_OF_PORTS >= 2  
-     #define SS_2_PIN     2           /* Configurable, see typical pin layout above*/   
-  #endif     
+  #define SS_2_PIN        3           /* Configurable, see typical pin layout above*/   
 #endif 
 
     // --------------------------------------------------------
@@ -97,12 +92,12 @@
 #define VER_HIGH        0X00
 
 #define UID_LEN         7
-
+#define LN_BUFF_LEN 10
 
 extern void dump_byte_array(byte *buffer, byte bufferSize);
 extern bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize);
 extern void copyUid(byte *buffIn, byte *buffOut, byte bufferSize);
-extern void setMessageHeader(uint8_t port);
+extern void setMessageHeader(uint8_t port, uint8_t index);
 extern uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *LnSendMsg);
 extern uint8_t lnCalcCheckSumm(uint8_t *cMessage, uint8_t cMesLen);
 extern void boardSetup(void);
@@ -112,7 +107,7 @@ extern void printSensorData(uint8_t);
 extern LocoNetSystemVariableClass sv;
 extern lnMsg       *LnPacket;
 extern lnMsg       SendPacket ;
-extern lnMsg       SendPacketSensor ;
+extern lnMsg       SendPacketSensor[] ;
 extern SV_STATUS   svStatus;
 extern boolean     deferredProcessingNeeded;
 

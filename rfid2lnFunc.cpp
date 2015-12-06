@@ -31,10 +31,6 @@ bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize) {
  * Maybe easier with memcpy?
  */
 void copyUid (byte *buffIn, byte *buffOut, byte bufferSize) {
-//    for (byte i = 0; i < bufferSize; i++) {
-//        buffOut[i] = buffIn[i];
-//    }
-
     memcpy(buffIn, buffOut, bufferSize);
     
     if(bufferSize < UID_LEN){
@@ -44,17 +40,17 @@ void copyUid (byte *buffIn, byte *buffOut, byte bufferSize) {
     }
 }
 
-void setMessageHeader(uint8_t port){
+void setMessageHeader(uint8_t port, uint8_t index){
     unsigned char k = 0;
-    SendPacketSensor.data[0] = 0xE4; //OPC - variable length message 
-    SendPacketSensor.data[1] = uiLnSendLength; //14 bytes length
-    SendPacketSensor.data[2] = 0x41; //report type 
-    SendPacketSensor.data[3] = ucAddrHiSen[port]; //sensor address high
-    SendPacketSensor.data[4] = ucAddrLoSen[port]; //sensor address low 
+    SendPacketSensor[index].data[0] = 0xE4; //OPC - variable length message 
+    SendPacketSensor[index].data[1] = uiLnSendLength; //14 bytes length
+    SendPacketSensor[index].data[2] = 0x41; //report type 
+    SendPacketSensor[index].data[3] = ucAddrHiSen[port]; //sensor address high
+    SendPacketSensor[index].data[4] = ucAddrLoSen[port]; //sensor address low 
     
-    SendPacketSensor.data[uiLnSendCheckSumIdx]=0xFF;
+    SendPacketSensor[index].data[uiLnSendCheckSumIdx]=0xFF;
     for(k=0; k<5;k++){
-      SendPacketSensor.data[uiLnSendCheckSumIdx] ^= SendPacketSensor.data[k];
+      SendPacketSensor[index].data[uiLnSendCheckSumIdx] ^= SendPacketSensor[index].data[k];
     }
 }
 
@@ -258,7 +254,7 @@ void calcSenAddr(uint8_t port){
        ucAddrHiSen[port] = (uiAddrSenFull[port] >> 7) & 0x7F;
        ucAddrLoSen[port] = uiAddrSenFull[port] & 0x7F;        
        ucSenType[port] = sv.readSVStorage(iSenAddr); //"sensor" type = in
-       setMessageHeader(port);
+       setMessageHeader(port, port);
 }
 
 void printSensorData(uint8_t port){
