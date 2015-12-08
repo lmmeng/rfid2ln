@@ -35,7 +35,7 @@
 #define MANUF_ID        13          /* DIY DCC*/
 #define BOARD_TYPE      5           /* something for sv.init*/
 
-#define UNO_LM /*my special UNO connections, to can use the same adaptor as for leonardo*/
+//#define UNO_LM /*my special UNO connections, to can use the same adaptor as for leonardo*/
 
 #if ARDUINO >= 10500 //the board naming scheme is supported from Arduino 1.5.0
  #if (defined(ARDUINO_AVR_UNO) && !defined(UNO_LM)) || defined(ARDUINO_AVR_NANO)
@@ -92,7 +92,7 @@
 #define VER_HIGH        0X00
 
 #define UID_LEN         7
-#define LN_BUFF_LEN 10
+#define LN_BUFF_LEN    10
 
 extern void dump_byte_array(byte *buffer, byte bufferSize);
 extern bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize);

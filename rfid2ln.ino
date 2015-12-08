@@ -109,14 +109,13 @@ void setup() {
   }
 
   SPI.begin();        // Init SPI bus
-
+//  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0)); //spi speed of MFRC522 - 10 MHz
+  
   for (uint8_t i = 0; i < NR_OF_PORTS; i++) {
     mfrc522[i].PCD_Init(mfrc522Cs[i], RST_PIN);
     if (bSerialOk) {
       printSensorData(i);
     }
-    mfrc522[i].PCD_WriteRegister(mfrc522[i].ComIEnReg, 0x20);
-//    mfrc522[i].PCD_WriteRegister(mfrc522[i].ComIEnReg, 0x20);
   }
 
   if (bSerialOk) {
@@ -133,7 +132,7 @@ void loop() {
   unsigned long uiActTime;
   unsigned char i = 0;
   unsigned char j = 0;
-  uint16_t uiDelayTime = 1;
+  uint16_t uiDelayTime = 500; //*ms
 
 /*************
  * Read the TAGs
@@ -142,7 +141,7 @@ void loop() {
     if(uiBufCnt < LN_BUFF_LEN){  //if buffer not full
       if ( mfrc522[port].PICC_IsNewCardPresent() && mfrc522[port].PICC_ReadCardSerial()) { //if tag data
         static bool delaying = false;
-        if (1) { //(!delaying){   //Avoid to many/to fast reads of the same tag
+        if (!delaying){   //Avoid to many/to fast reads of the same tag
           // Show some details of the PICC (that is: the tag/card)
           if (bSerialOk) {
             Serial.print(F("Port: "));
