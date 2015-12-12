@@ -42,6 +42,8 @@
 #define EE_ERASE   0
 
 MFRC522 mfrc522[NR_OF_PORTS];
+uint8_t boardVer[] = "RFID2LN V1";
+char verLen = sizeof(boardVer);
 
 LocoNetSystemVariableClass sv;
 lnMsg       *LnPacket;
@@ -98,8 +100,8 @@ void setup() {
   sv.init(MANUF_ID, BOARD_TYPE, 1, 1); //to see if needed just once (saved in EEPROM)
 
 #if EE_ERASE
-  for (uint8_t i = 0; i < 11; i++) {
-    EEPROM.write(255 - 11 + i, 0xff);
+  for(uint8_t i = 0; i<verLen; i++){
+    EEPROM.write(255 - verLen + i, 0xff);
   }
 #endif
 
