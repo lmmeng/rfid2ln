@@ -164,7 +164,7 @@ void loop() {
            dump_byte_array(SendPacketSensor.data, uiLnSendLength);
            Serial.println();
         }
-        LocoNet.send( &SendPacketSensor, uiLnSendLength );    
+        LocoNet.send( &SendPacketSensor, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time 
 
         copyUid(mfrc522.uid.uidByte, oldUid, mfrc522.uid.size);
         
@@ -194,7 +194,7 @@ void loop() {
          //svStatus = sv.processMessage(LnPacket);
          
         processXferMess(LnPacket, &SendPacket);
-        LocoNet.send( &SendPacket );    
+        LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time   
 
         calcSenAddr();
         setMessageHeader(); //if the sensor address was changed, update the header                
