@@ -105,6 +105,9 @@ extern lnMsg       SendPacketSensor ;
 extern SV_STATUS   svStatus;
 extern boolean     deferredProcessingNeeded;
 
+extern uint8_t boardVer[];
+extern char verLen;
+
 extern uint8_t ucBoardAddrHi;  //board address high; always 1
 extern uint8_t ucBoardAddrLo;  //board address low; default 88
 

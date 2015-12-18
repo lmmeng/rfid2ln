@@ -196,8 +196,6 @@ uint8_t lnCalcCheckSumm(uint8_t *cMessage, uint8_t cMesLen) {
  */
 void boardSetup(void){
     boolean bVersionOK = true;
-    uint8_t boardVer[] = "RFID2LN V1";
-    char verLen = sizeof(boardVer);
     char ch;
     for(uint8_t i = 0; i<verLen; i++){
         ch = EEPROM.read(255 - verLen + i);

@@ -52,6 +52,9 @@ lnMsg       SendPacketSensor ;
 SV_STATUS   svStatus = SV_OK;
 boolean     deferredProcessingNeeded = false;
 
+uint8_t boardVer[] = "RFID2LN V1";
+char verLen = sizeof(boardVer);
+
 uint8_t ucBoardAddrHi = 1;  //board address high; always 1
 uint8_t ucBoardAddrLo = 88;  //board address low; default 88
 
@@ -93,8 +96,8 @@ void setup() {
     sv.init(MANUF_ID, BOARD_TYPE, 1, 1); //to see if needed just once (saved in EEPROM)
 
 #if EE_ERASE
-       for(uint8_t i = 0; i<11; i++){
-           EEPROM.write(255 - 11 + i, 0xff);
+       for(uint8_t i = 0; i < verLen; i++){
+           EEPROM.write(255 - verLen + i, 0xff);
        }
 #endif
 
