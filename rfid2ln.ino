@@ -225,7 +225,7 @@ void loop() {
         }
 #endif
 
-     LocoNet.send( &SendPacketSensor[uiBufRdIdx], uiLnSendLength );
+     LocoNet.send( &SendPacketSensor[uiBufRdIdx], LN_BACKOFF_MAX - (ucBoardAddrLo % 10));   //trying to differentiate the ln answer time
      
      if(uiBufRdIdx < LN_BUFF_LEN){
         uiBufRdIdx++;
@@ -248,7 +248,7 @@ void loop() {
       //svStatus = sv.processMessage(LnPacket);
 
       processXferMess(LnPacket, &SendPacket);
-      LocoNet.send( &SendPacket );
+      LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10));   //trying to differentiate the ln answer time
 
       // Rocrail compatible addressing
       for (uint8_t i = 0; i < NR_OF_PORTS; i++) {
