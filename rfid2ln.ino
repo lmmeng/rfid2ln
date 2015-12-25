@@ -167,7 +167,12 @@ void loop() {
            dump_byte_array(SendPacketSensor.data, uiLnSendLength);
            Serial.println();
         }
-        LocoNet.send( &SendPacketSensor, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time 
+
+        /*blocking. To find out a non blocking version (buffer?- see the multireader version)*/
+        LN_STATUS lnSent;
+        do{
+           LocoNet.send( &SendPacketSensor, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time 
+        } while(lnSent != LN_DONE);
 
         copyUid(mfrc522.uid.uidByte, oldUid, mfrc522.uid.size);
         
@@ -197,8 +202,13 @@ void loop() {
          //svStatus = sv.processMessage(LnPacket);
          
         processXferMess(LnPacket, &SendPacket);
-        LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time   
-
+        
+        /*blocking. If it works, to find out a non blocking version*/
+        LN_STATUS lnSent;
+        do{
+           lnSent = LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time   
+        } while(lnSent != LN_DONE);
+        
         calcSenAddr();
         setMessageHeader(); //if the sensor address was changed, update the header                
      } //if(msgLen == 0x10)
