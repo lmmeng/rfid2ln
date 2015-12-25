@@ -28,7 +28,7 @@
  *             Signal       Uno           Mega      Nano v3    Leonardo/Micro   Pro Micro
  * -----------------------------------------------------------------------------------------
  *             RX           ICP           ICP       ICP (8)   ICP (4)          ICP
- *             TX                                        7     6
+ *             TX                                        6     6
  *
  */
 
@@ -225,15 +225,17 @@ void loop() {
         }
 #endif
 
-     LocoNet.send( &SendPacketSensor[uiBufRdIdx], LN_BACKOFF_MAX - (ucBoardAddrLo % 10));   //trying to differentiate the ln answer time
-     
-     if(uiBufRdIdx < LN_BUFF_LEN){
-        uiBufRdIdx++;
-     } else {
-        uiBufRdIdx=0;
-     }
-     uiBufCnt--;
-  }
+     LN_STATUS lnSent = LocoNet.send( &SendPacketSensor[uiBufRdIdx], LN_BACKOFF_MAX - (ucBoardAddrLo % 10));   //trying to differentiate the ln answer time
+
+     if(lnSent = LN_DONE){ //message sent OK
+        if(uiBufRdIdx < LN_BUFF_LEN){
+           uiBufRdIdx++;
+        } else {
+           uiBufRdIdx=0;
+        }
+        uiBufCnt--;
+     } //if(lnSent = LN_DONE)
+  } //if(uiBufCnt > 0){
 
   /************
    * Addresses programming over loconet
@@ -248,8 +250,13 @@ void loop() {
       //svStatus = sv.processMessage(LnPacket);
 
       processXferMess(LnPacket, &SendPacket);
-      LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10));   //trying to differentiate the ln answer time
 
+      /*blocking. If it works, to find out a non blocking version*/
+      LN_STATUS lnSent;
+      do{
+         LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10));   //trying to differentiate the ln answer time
+      } while(lnSent != LN_DONE);
+      
       // Rocrail compatible addressing
       for (uint8_t i = 0; i < NR_OF_PORTS; i++) {
         calcSenAddr(i);
