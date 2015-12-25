@@ -28,7 +28,7 @@
  *             Signal       Uno           Mega      Nano v3    Leonardo/Micro   Pro Micro
  * -----------------------------------------------------------------------------------------
  *             RX           ICP           ICP       ICP (8)   ICP (4)          ICP      
- *             TX                                        7     6                
+ *             TX                                        6     6                
  *
  */
 
