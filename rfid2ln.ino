@@ -93,7 +93,7 @@ void setup() {
    
     //initialize the LocoNet interface
     LocoNet.init(LN_TX_PIN); //Always use the explicit naming of the Tx Pin to avoid confusions 
-    sv.init(MANUF_ID, BOARD_TYPE, 1, 1); //to see if needed just once (saved in EEPROM)
+//    sv.init(MANUF_ID, BOARD_TYPE, 1, 1); //to see if needed just once (saved in EEPROM)
 
 #if EE_ERASE
        for(uint8_t i = 0; i < verLen; i++){
@@ -169,10 +169,7 @@ void loop() {
         }
 
         /*blocking. To find out a non blocking version (buffer?- see the multireader version)*/
-        LN_STATUS lnSent;
-        do{
-           LocoNet.send( &SendPacketSensor, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time 
-        } while(lnSent != LN_DONE);
+        LN_STATUS lnSent = LocoNet.send( &SendPacketSensor, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time 
 
         copyUid(mfrc522.uid.uidByte, oldUid, mfrc522.uid.size);
         
@@ -194,24 +191,26 @@ void loop() {
 
   } //if ( mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){    
   LnPacket = LocoNet.receive() ;
-  if( LnPacket && ((LnPacket->data[2] != ucBoardAddrLo) || (LnPacket->data[4] != ucBoardAddrHi))) { //new message sent by other
-     uint8_t msgLen = getLnMsgSize(LnPacket);
+  if( LnPacket){
+    uint8_t msgLen = getLnMsgSize(LnPacket);
      
-     //Change the board & sensor addresses. Changing the board address is working
-     if(msgLen == 0x10){  //XFERmessage, check if it is for me. Used to change the address
-         //svStatus = sv.processMessage(LnPacket);
+    //Change the board & sensor addresses. Changing the board address is working
+    if(msgLen == 0x10){  //XFERmessage, check if it is for me. Used to change the addresses
+      if((LnPacket->data[3] == ucBoardAddrLo) || (LnPacket->data[3] == 0)){ //my low address or query
+        if((LnPacket->data[4] != ucBoardAddrLo) && (LnPacket->data[4] != 0x7F)){ ////my high address or query
+           //svStatus = sv.processMessage(LnPacket);
          
-        processXferMess(LnPacket, &SendPacket);
+           processXferMess(LnPacket, &SendPacket);
         
-        /*blocking. If it works, to find out a non blocking version*/
-        LN_STATUS lnSent;
-        do{
-           lnSent = LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time   
-        } while(lnSent != LN_DONE);
+           /*5 sec timeout.*/
+           LN_STATUS lnSent = LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time   
         
-        calcSenAddr();
-        setMessageHeader(); //if the sensor address was changed, update the header                
-     } //if(msgLen == 0x10)
-  }
-}
+           calcSenAddr();
+           setMessageHeader(); //if the sensor address was changed, update the header 
+        } //if(LnPacket->data[4]               
+      } //if(LnPacket->data[3]
+    } //if(msgLen == 0x10)
+  }//if( LnPacket)
+
+} 
 
