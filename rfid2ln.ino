@@ -242,33 +242,34 @@ void loop() {
    */
    
   LnPacket = LocoNet.receive() ;
-  if ( LnPacket && ((LnPacket->data[2] != ucBoardAddrLo) || (LnPacket->data[4] != ucBoardAddrHi))) { //new message sent by other
+  if ( LnPacket) { //new message sent by other
     uint8_t msgLen = getLnMsgSize(LnPacket);
 
     //Change the board & sensor addresses. Changing the board address is working
-    if (msgLen == 0x10) { //XFERmessage, check if it is for me. Used to change the address
-      //svStatus = sv.processMessage(LnPacket);
+    if(msgLen == 0x10){  //XFERmessage, check if it is for me. Used to change the addresses
+      if((LnPacket->data[3] == ucBoardAddrLo) || (LnPacket->data[3] == 0)){ //my low address or query
+        if((LnPacket->data[4] != ucBoardAddrLo) && (LnPacket->data[4] != 0x7F)){ ////my high address or query
+          //svStatus = sv.processMessage(LnPacket);
 
-      processXferMess(LnPacket, &SendPacket);
+          processXferMess(LnPacket, &SendPacket);
 
-      /*blocking. If it works, to find out a non blocking version*/
-      LN_STATUS lnSent;
-      do{
-         LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10));   //trying to differentiate the ln answer time
-      } while(lnSent != LN_DONE);
+          /*blocking. If it works, to find out a non blocking version*/
+          LN_STATUS lnSent = LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10));   //trying to differentiate the ln answer time
       
-      // Rocrail compatible addressing
-      for (uint8_t i = 0; i < NR_OF_PORTS; i++) {
-        calcSenAddr(i);
+          // Rocrail compatible addressing
+          for (uint8_t i = 0; i < NR_OF_PORTS; i++) {
+            calcSenAddr(i);
 
 #ifdef _SER_DEBUG
-        if (bSerialOk) {
-          printSensorData(i);
-        }
+            if (bSerialOk) {
+              printSensorData(i);
+            }
 #endif
-      }
+	  }//for(uint8_t i
+        } //if(LnPacket->data[4]               
+      } //if(LnPacket->data[3]
     } //if(msgLen == 0x10)
-  }
+  }//if( LnPacket)
 }
 
 

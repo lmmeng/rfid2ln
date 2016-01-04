@@ -30,7 +30,7 @@
 
 #include <LocoNet.h>
 
-#define NR_OF_PORTS     1
+#define NR_OF_PORTS     2
 
 #define MANUF_ID        13          /* DIY DCC*/
 #define BOARD_TYPE      5           /* something for sv.init*/
