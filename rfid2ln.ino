@@ -197,7 +197,7 @@ void loop() {
     //Change the board & sensor addresses. Changing the board address is working
     if(msgLen == 0x10){  //XFERmessage, check if it is for me. Used to change the addresses
       if((LnPacket->data[3] == ucBoardAddrLo) || (LnPacket->data[3] == 0)){ //my low address or query
-        if((LnPacket->data[4] != ucBoardAddrLo) && (LnPacket->data[4] != 0x7F)){ ////my high address or query
+        if((LnPacket->data[4] == ucBoardAddrHi) || (LnPacket->data[4] == 0x7F)){ ////my high address or query
            //svStatus = sv.processMessage(LnPacket);
          
            processXferMess(LnPacket, &SendPacket);
