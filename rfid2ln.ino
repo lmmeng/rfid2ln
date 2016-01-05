@@ -134,7 +134,7 @@ void loop() {
   unsigned long uiActTime;
   unsigned char i = 0;
   unsigned char j = 0;
-  uint16_t uiDelayTime = 500; //*ms
+  uint16_t uiDelayTime = 100; //*ms
 
 /*************
  * Read the TAGs
@@ -205,9 +205,9 @@ void loop() {
         } //else
 
         // Halt PICC
-        mfrc522[port].PICC_HaltA();
+//        mfrc522[port].PICC_HaltA();
         // Stop encryption on PCD
-        mfrc522[port].PCD_StopCrypto1();
+//        mfrc522[port].PCD_StopCrypto1();
 
       } //if ( mfrc522_1.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial())
     }   // if(uiBufCnt < LN_BUFF_LEN){
@@ -244,11 +244,12 @@ void loop() {
   LnPacket = LocoNet.receive() ;
   if ( LnPacket) { //new message sent by other
     uint8_t msgLen = getLnMsgSize(LnPacket);
+    
 
     //Change the board & sensor addresses. Changing the board address is working
     if(msgLen == 0x10){  //XFERmessage, check if it is for me. Used to change the addresses
       if((LnPacket->data[3] == ucBoardAddrLo) || (LnPacket->data[3] == 0)){ //my low address or query
-        if((LnPacket->data[4] != ucBoardAddrLo) && (LnPacket->data[4] != 0x7F)){ ////my high address or query
+        if((LnPacket->data[4] == ucBoardAddrHi) || (LnPacket->data[4] == 0x7F)){ ////my high address or query
           //svStatus = sv.processMessage(LnPacket);
 
           processXferMess(LnPacket, &SendPacket);
