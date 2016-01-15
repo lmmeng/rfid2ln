@@ -8,7 +8,7 @@
  * -----------------------------------------------------------------------------------------
  * RST/Reset   RST          9             5         D9         RESET/ICSP-5     RST
  * SPI SS 1    SDA(SS)      10            53        D10        5                10
- * SPI SS 2    SDA(SS)      3             ?         D3         3                ?
+ * SPI SS 2    SDA(SS)      7             ?         D7         3                ?
  * SPI MOSI    MOSI         11 / ICSP-4   51        D11        ICSP-4           16
  * SPI MISO    MISO         12 / ICSP-1   50        D12        ICSP-1           14
  * SPI SCK     SCK          13 / ICSP-3   52        D13        ICSP-3           15
@@ -39,10 +39,10 @@
 
 #if ARDUINO >= 10500 //the board naming scheme is supported from Arduino 1.5.0
  #if (defined(ARDUINO_AVR_UNO) && !defined(UNO_LM)) || defined(ARDUINO_AVR_NANO)
-  #define LN_TX_PIN       7           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
+  #define LN_TX_PIN       6           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
   #define RST_PIN         9           /* Configurable, see typical pin layout above*/
   #define SS_1_PIN       10           /* Configurable, see typical pin layout above*/   
-  #define SS_2_PIN        3           /* Configurable, see typical pin layout above*/   
+  #define SS_2_PIN        7           /* Configurable, see typical pin layout above*/   
 #elif defined(ARDUINO_AVR_LEONARDO) || defined(UNO_LM) 
   #define LN_TX_PIN       6           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
   #define RST_PIN         9           /* Configurable, see typical pin layout above*/

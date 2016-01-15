@@ -15,10 +15,11 @@
  * Signal      Pin          Pin           Pin       Pin        Pin              Pin
  * -----------------------------------------------------------------------------------------
  * RST/Reset   RST          9             5         D9         RESET/ICSP-5     RST
- * SPI SS      SDA(SS)      10            53        D10        5                10
- * SPI MOSI    MOSI         11 / ICSP-4   51        D11        ICSP-4           16
- * SPI MISO    MISO         12 / ICSP-1   50        D12        ICSP-1           14
- * SPI SCK     SCK          13 / ICSP-3   52        D13        ICSP-3           15
+ * SPI SS 1    SDA(SS)      10            53        D10        5                ?
+ * SPI SS 2    SDA(SS)      7             53        D7         3                ?
+ * SPI MOSI    MOSI         11 / ICSP-4   51        D11        ICSP-4           ?
+ * SPI MISO    MISO         12 / ICSP-1   50        D12        ICSP-1           ?
+ * SPI SCK     SCK          13 / ICSP-3   52        D13        ICSP-3           ?
  *
  * Typical pin layout used - Loconet:
  * RX = ICP pin (see arduino.cc for details on each board). I'm using the Leonardo board => Pin4
