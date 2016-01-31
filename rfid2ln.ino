@@ -42,7 +42,7 @@
 //#define _SER_DEBUG
 #define EE_ERASE   0
 
-MFRC522 mfrc522[NR_OF_PORTS];
+MFRC522 mfrc522[NR_OF_RFID_PORTS];
 uint8_t boardVer[] = "RFID2LN V1";
 char verLen = sizeof(boardVer);
 
@@ -57,17 +57,17 @@ boolean     deferredProcessingNeeded = false;
 uint8_t ucBoardAddrHi = 1;  //board address high; always 1
 uint8_t ucBoardAddrLo = 88;  //board address low; default 88
 
-uint8_t ucAddrHiSen[NR_OF_PORTS];    //sensor address high
-uint8_t ucAddrLoSen[NR_OF_PORTS];    //sensor address low
-uint8_t ucSenType[NR_OF_PORTS] = {0x0F}; //input
-uint16_t uiAddrSenFull[NR_OF_PORTS];
+uint8_t ucAddrHiSen[NR_OF_RFID_PORTS];    //sensor address high
+uint8_t ucAddrLoSen[NR_OF_RFID_PORTS];    //sensor address low
+uint8_t ucSenType[NR_OF_RFID_PORTS] = {0x0F}; //input
+uint16_t uiAddrSenFull[NR_OF_RFID_PORTS];
 
 uint8_t uiLnSendCheckSumIdx = 13;
 uint8_t uiLnSendLength = 14; //14 bytes
 uint8_t uiLnSendMsbIdx = 12;
 uint8_t uiStartChkSen;
 
-uint8_t oldUid[NR_OF_PORTS][UID_LEN] = {0};
+uint8_t oldUid[NR_OF_RFID_PORTS][UID_LEN] = {0};
 
 boolean bSerialOk = false;
 
@@ -76,6 +76,12 @@ byte mfrc522Cs[] = {SS_1_PIN, SS_2_PIN};
 uint8_t uiBufWrIdx = 0;
 uint8_t uiBufRdIdx = 0;
 uint8_t uiBufCnt = 0;
+
+__outType outputs[TOTAL_NR_OF_PORTS - NR_OF_RFID_PORTS]; /*maximum number of outputs*/
+uint8_t outsNr = 0;
+boolean bUpdateOutputs = false;
+
+uint8_t uiRfidPort = 0;
 
 /**
  * Initialize.
@@ -107,14 +113,14 @@ void setup() {
 #endif
 
   boardSetup();
-  for (uint8_t i = 0; i < NR_OF_PORTS; i++) {
+  for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
      calcSenAddr(i);
   }
 
   SPI.begin();        // Init SPI bus
 //  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0)); //spi speed of MFRC522 - 10 MHz
   
-  for (uint8_t i = 0; i < NR_OF_PORTS; i++) {
+  for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
     mfrc522[i].PCD_Init(mfrc522Cs[i], RST_PIN);
     if (bSerialOk) {
       printSensorData(i);
@@ -126,38 +132,40 @@ void setup() {
   }
 }
 
-/**
- * Main loop.
- */
-void loop() {
-  SV_STATUS svStatus;
+//  SV_STATUS svStatus;
   unsigned long uiStartTime;
   unsigned long uiActTime;
   unsigned char i = 0;
   unsigned char j = 0;
-  uint16_t uiDelayTime = 100; //*ms
+  uint16_t uiDelayTime = 300; //*ms
 
+
+/**
+ * Main loop.
+ */
+void loop() {
 /*************
  * Read the TAGs
  */
-  for (uint8_t port = 0; port < NR_OF_PORTS; port++) {
+//  for (uint8_t port = 0; port < NR_OF_RFID_PORTS; port++) {
+  if(NR_OF_RFID_PORTS > 0){
     if(uiBufCnt < LN_BUFF_LEN){  //if buffer not full
-      if ( mfrc522[port].PICC_IsNewCardPresent() && mfrc522[port].PICC_ReadCardSerial()) { //if tag data
+      if ( mfrc522[uiRfidPort].PICC_IsNewCardPresent() && mfrc522[uiRfidPort].PICC_ReadCardSerial()) { //if tag data
         static bool delaying = false;
         if (!delaying){   //Avoid to many/to fast reads of the same tag
           // Show some details of the PICC (that is: the tag/card)
           if (bSerialOk) {
             Serial.print(F("Port: "));
-            Serial.print(port);
+            Serial.print(uiRfidPort);
             Serial.print(F(" Card UID:"));
-            dump_byte_array(mfrc522[port].uid.uidByte, mfrc522[port].uid.size);
+            dump_byte_array(mfrc522[uiRfidPort].uid.uidByte, mfrc522[uiRfidPort].uid.size);
             Serial.println();
           }
 
           uiStartTime = millis();
           delaying = true;
 
-          setMessageHeader(port, uiBufWrIdx); //if the sensor address was changed, update the header
+          setMessageHeader(uiRfidPort, uiBufWrIdx); //if the sensor address was changed, update the header
  
           /****
           * Put the new data in buffer
@@ -165,10 +173,10 @@ void loop() {
           SendPacketSensor[uiBufWrIdx].data[uiLnSendCheckSumIdx] = uiStartChkSen; //start with header check summ
           SendPacketSensor[uiBufWrIdx].data[uiLnSendMsbIdx] = 0; //clear the byte for the ms bits
           for (i = 0, j = 5; i < UID_LEN; i++, j++) {
-            if (mfrc522[port].uid.size > i) {
-              SendPacketSensor[uiBufWrIdx].data[j] = mfrc522[port].uid.uidByte[i] & 0x7F; //loconet bytes haver only 7 bits;
+            if (mfrc522[uiRfidPort].uid.size > i) {
+              SendPacketSensor[uiBufWrIdx].data[j] = mfrc522[uiRfidPort].uid.uidByte[i] & 0x7F; //loconet bytes have only 7 bits;
               // MSbit is transmited in the SendPacket.data[10]
-              if (mfrc522[port].uid.uidByte[i] & 0x80) {
+              if (mfrc522[uiRfidPort].uid.uidByte[i] & 0x80) {
                  SendPacketSensor[uiBufWrIdx].data[uiLnSendMsbIdx] |= 1 << i;
               }
               SendPacketSensor[uiBufWrIdx].data[uiLnSendCheckSumIdx] ^= SendPacketSensor[uiBufWrIdx].data[j]; //calculate the checksumm
@@ -193,10 +201,10 @@ void loop() {
           }
           uiBufCnt++;
  
-          copyUid(mfrc522[port].uid.uidByte, oldUid[port], mfrc522[port].uid.size);
+          copyUid(mfrc522[uiRfidPort].uid.uidByte, oldUid[uiRfidPort], mfrc522[uiRfidPort].uid.size);
         } else { //if(!delaying)
           uiActTime = millis();
-          if (compareUid(	mfrc522[port].uid.uidByte, oldUid[port], mfrc522[port].uid.size)) { //same UID
+          if (compareUid(	mfrc522[uiRfidPort].uid.uidByte, oldUid[uiRfidPort], mfrc522[uiRfidPort].uid.size)) { //same UID
             if ((uiActTime - uiStartTime) > uiDelayTime) {
               delaying = false;
             } //if((uiActTime
@@ -212,7 +220,13 @@ void loop() {
 
       } //if ( mfrc522_1.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial())
     }   // if(uiBufCnt < LN_BUFF_LEN){
-  } //for(uint8_t i = 0; i<NR_OF_PORTS; i++)
+//  } //for(uint8_t i = 0; i<NR_OF_PORTS; i++)
+
+    uiRfidPort++;
+    if(uiRfidPort == NR_OF_RFID_PORTS){
+       uiRfidPort = 0;
+    }
+  } //if(NR_OF_RFID_PORTS
 
   /******
    * send the tag data in the loconet bus
@@ -259,7 +273,7 @@ void loop() {
           LN_STATUS lnSent = LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10));   //trying to differentiate the ln answer time
       
           // Rocrail compatible addressing
-          for (uint8_t i = 0; i < NR_OF_PORTS; i++) {
+          for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
             calcSenAddr(i);
 
 #ifdef _SER_DEBUG

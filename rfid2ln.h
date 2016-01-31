@@ -30,7 +30,8 @@
 
 #include <LocoNet.h>
 
-#define NR_OF_PORTS     2
+#define NR_OF_RFID_PORTS     2
+#define TOTAL_NR_OF_PORTS    8
 
 #define MANUF_ID        13          /* DIY DCC*/
 #define BOARD_TYPE      5           /* something for sv.init*/
@@ -117,19 +118,29 @@ extern boolean     deferredProcessingNeeded;
 extern uint8_t ucBoardAddrHi;  //board address high; always 1
 extern uint8_t ucBoardAddrLo;  //board address low; default 88
 
-extern uint8_t ucAddrHiSen[NR_OF_PORTS];    //sensor address high
-extern uint8_t ucAddrLoSen[NR_OF_PORTS];    //sensor address low
-extern uint8_t ucSenType[NR_OF_PORTS]; //input
-extern uint16_t uiAddrSenFull[NR_OF_PORTS];
+extern uint8_t ucAddrHiSen[NR_OF_RFID_PORTS];    //sensor address high
+extern uint8_t ucAddrLoSen[NR_OF_RFID_PORTS];    //sensor address low
+extern uint8_t ucSenType[NR_OF_RFID_PORTS]; //input
+extern uint16_t uiAddrSenFull[NR_OF_RFID_PORTS];
 
 extern uint8_t uiLnSendCheckSumIdx;
 extern uint8_t uiLnSendLength; //14 bytes
 extern uint8_t uiLnSendMsbIdx;
 extern uint8_t uiStartChkSen;
 
-extern uint8_t oldUid[NR_OF_PORTS][UID_LEN];
+extern uint8_t oldUid[NR_OF_RFID_PORTS][UID_LEN];
 
 extern boolean bSerialOk;
+
+typedef struct {
+  uint16_t addr;
+  uint8_t  state;
+  uint8_t  idx;
+} __outType;
+
+extern __outType outputs[];
+extern uint8_t outsNr;
+extern boolean bUpdateOutputs;
 
 #endif //ifndef RFID2LN_H_
 

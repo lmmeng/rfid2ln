@@ -112,9 +112,14 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
                 }
                 cOutBuf->data[0x0B] = 0x7F;
                 cOutBuf->data[0x0E] = 0x7F;
-            } else if (ucPeerRSvIndex < (NR_OF_PORTS * 3 + 3)) { //nr_of_ports (1) * 3 register starting with the address 3
-                if ((ucPeerRSvIndex % 3) != 0) { // do not change the type (leave it as IN)
-                    sv.writeSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex, ucPeerRSvValue); //save the new value
+            } else if (ucPeerRSvIndex < (TOTAL_NR_OF_PORTS * 3 + 3)) { //nr_of_ports (1) * 3 register starting with the address 3
+                sv.writeSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex, ucPeerRSvValue); //save the new value
+                if ((ucPeerRSvIndex % 3) == 0) { // port type. If output, increase the total number of outputs
+                   if(ucPeerRSvValue == 0x10){
+                      bUpdateOutputs = true; //activate the outputs structure update 
+                      outputs[outsNr].idx = ucPeerRSvIndex;
+                      outsNr++;
+                   }
                 }
                 cOutBuf->data[0x0B] = ucBoardAddrHi; 
                 ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex);
@@ -216,7 +221,7 @@ void boardSetup(void){
        sv.writeSVStorage(SV_ADDR_SERIAL_NUMBER_L, 0x78);
 
        int iSenAddr = 0;
-       for(int i=0; i<NR_OF_PORTS; i++){
+       for(int i=0; i<NR_OF_RFID_PORTS; i++){
           ucSenType[i]=0x0F;
           iSenAddr = SV_ADDR_USER_BASE + 3 + 3*i;         
           sv.writeSVStorage(iSenAddr+2, i*0x20); //1 for port1, 2 for port 2
