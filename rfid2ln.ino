@@ -71,6 +71,8 @@ uint8_t uiStartChkSen;
 uint8_t oldUid[UID_LEN] = {0};
 
 boolean bSerialOk=false;
+
+boolean bSendReset = false;
   
 /**
  * Initialize.
@@ -172,6 +174,8 @@ void loop() {
         LN_STATUS lnSent = LocoNet.send( &SendPacketSensor, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time 
 
         copyUid(mfrc522.uid.uidByte, oldUid, mfrc522.uid.size);
+
+        bSendReset = true;
         
      } else { //if(!delaying)
 	       uiActTime = millis();	
@@ -188,6 +192,17 @@ void loop() {
      mfrc522.PICC_HaltA();
      // Stop encryption on PCD
      mfrc522.PCD_StopCrypto1();
+
+     if(bSendReset){
+        bSendReset = false;
+        
+        uint8_t iSenAddr = SV_ADDR_USER_BASE + 3;         
+        SendPacketSensor.data[0] = 0xB2;
+        SendPacketSensor.data[1] = sv.readSVStorage(iSenAddr+1);
+        SendPacketSensor.data[2] = sv.readSVStorage(iSenAddr+2);
+        SendPacketSensor.data[3] = lnCalcCheckSumm(SendPacketSensor.data, 3);
+
+     }
 
   } //if ( mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){    
   LnPacket = LocoNet.receive() ;
