@@ -42,7 +42,7 @@
  #elif defined(ARDUINO_AVR_LEONARDO) || defined(UNO_LM) 
   #define LN_TX_PIN       6           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
   #define RST_PIN         9           /* Configurable, see typical pin layout above*/
-  #define SS_PIN          5           /* Configurable, see typical pin layout above*/                                   /* I'm using the Leonardo board*/
+  #define SS_PIN          3           /* Configurable, see typical pin layout above*/                                   /* I'm using the Leonardo board*/
  #endif
 #else //older arduino IDE => initialising each board as it is used. I'm using Leonardo
   #define LN_TX_PIN       6           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */

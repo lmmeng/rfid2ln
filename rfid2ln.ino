@@ -147,6 +147,7 @@ void loop() {
 	      uiStartTime = millis();
 	      delaying = true;
 
+           setMessageHeader(); //if the sensor address was changed, update the header 
         SendPacketSensor.data[uiLnSendCheckSumIdx]= uiStartChkSen; //start with header check summ
         SendPacketSensor.data[uiLnSendMsbIdx]=0; //clear the byte for the ms bits
         for(i=0, j=5; i< UID_LEN; i++, j++){
@@ -193,14 +194,22 @@ void loop() {
      // Stop encryption on PCD
      mfrc522.PCD_StopCrypto1();
 
+     /* Reset the sensor indication in Rocrail => RFID can be used as a normal sensor*/
      if(bSendReset){
         bSendReset = false;
-        
-        uint8_t iSenAddr = SV_ADDR_USER_BASE + 3;         
+
+        delay(10); 
+        uint8_t iSenAddr = SV_ADDR_USER_BASE + 3;
+        uint16_t uiAddr =  (uiAddrSenFull - 1) / 2;    
         SendPacketSensor.data[0] = 0xB2;
-        SendPacketSensor.data[1] = sv.readSVStorage(iSenAddr+1);
-        SendPacketSensor.data[2] = sv.readSVStorage(iSenAddr+2);
+        SendPacketSensor.data[1] = uiAddr & 0x7F; //ucAddrLoSen;
+        SendPacketSensor.data[2] = ((uiAddr >> 7) & 0x0F) | 0x40; //ucAddrHiSen & 0xEF;
+        if((uiAddrSenFull & 0x01) == 0){
+          SendPacketSensor.data[2] |= 0x20;
+        }
         SendPacketSensor.data[3] = lnCalcCheckSumm(SendPacketSensor.data, 3);
+        
+        LocoNet.send( &SendPacketSensor, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time 
 
      }
 
@@ -221,7 +230,7 @@ void loop() {
            LN_STATUS lnSent = LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time   
         
            calcSenAddr();
-           setMessageHeader(); //if the sensor address was changed, update the header 
+//           setMessageHeader(); //if the sensor address was changed, update the header 
         } //if(LnPacket->data[4]               
       } //if(LnPacket->data[3]
     } //if(msgLen == 0x10)
