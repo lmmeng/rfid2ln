@@ -121,12 +121,8 @@ void setup() {
     }  
 }
 
-  unsigned long uiStartTime;
-  unsigned long uiActTime;
-  bool delaying = false;
   unsigned char i=0;
   unsigned char j=0;  
-  uint16_t uiDelayTime = 500;
 
 
 /**
@@ -136,7 +132,7 @@ void loop() {
   if ( mfrc522.PICC_IsNewCardPresent()){
     if(mfrc522.PICC_ReadCardSerial()){  
 
-      if((!delaying) && (uiNrEmptyReads > 1) ){   //Avoid to many/to fast reads of the same tag
+      if(uiNrEmptyReads > 1){   //send an uid only once
         // Show some details of the PICC (that is: the tag/card)
         if(bSerialOk){
            Serial.print(F("Card UID:"));
@@ -148,9 +144,6 @@ void loop() {
         // Show some details of the loconet setup
         printSensorData();
 #endif
-
-	      uiStartTime = millis();
-	      delaying = true;
 
         setMessageHeader(); //if the sensor address was changed, update the header 
         SendPacketSensor.data[uiLnSendCheckSumIdx]= uiStartChkSen; //start with header check summ
@@ -182,23 +175,11 @@ void loop() {
         copyUid(mfrc522.uid.uidByte, oldUid, mfrc522.uid.size);
 
         bSendReset = true;
-      } else { //if(!delaying)
-	       uiActTime = millis();
-
-         if(compareUid(	mfrc522.uid.uidByte, oldUid, mfrc522.uid.size)){//same UID	
-	          if((uiActTime - uiStartTime) > uiDelayTime){
-	             delaying = false;
-            } //if((uiActTime
-         } else { //new UID
-            delaying = false;
-         }
-      } //else if(!delaying)
+      } //if(uiNrEmptyReads > 1){
     } //if(mfrc522.PICC_ReadCardSeri
-        // Halt PICC
- //       mfrc522.PICC_HaltA();
-        // Stop encryption on PCD
- //       mfrc522.PCD_StopCrypto1();
+
     uiNrEmptyReads = 0;
+
   } else { //if ( mfrc522.PICC_IsNewCardPresent() 
      /* Reset the sensor indication in Rocrail => RFID can be used as a normal sensor*/
      if (!mfrc522.PICC_ReadCardSerial()){
