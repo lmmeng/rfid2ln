@@ -220,7 +220,7 @@ void loop() {
           LocoNet.send( &SendPacketSensor, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time 
        } //if(bSendReset     
      
-       if(uiNrEmptyReads <= (MAX_EMPTY_READS + 2)){
+       if(uiNrEmptyReads <= (MAX_EMPTY_READS + 1)){
           uiNrEmptyReads++;
        } 
      } //if (!mfrc522.PICC_

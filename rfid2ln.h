@@ -88,7 +88,7 @@
 #define NR_OF_PORTS     1
 #define UID_LEN         7
 
-#define MAX_EMPTY_READS 5
+#define MAX_EMPTY_READS 3
 
 extern void dump_byte_array(byte *buffer, byte bufferSize);
 extern bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize);
