@@ -88,6 +88,8 @@
 #define NR_OF_PORTS     1
 #define UID_LEN         7
 
+#define MAX_EMPTY_READS 5
+
 extern void dump_byte_array(byte *buffer, byte bufferSize);
 extern bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize);
 extern void copyUid(byte *buffIn, byte *buffOut, byte bufferSize);
@@ -97,6 +99,7 @@ extern uint8_t lnCalcCheckSumm(uint8_t *cMessage, uint8_t cMesLen);
 extern void boardSetup(void);
 extern void calcSenAddr(void);
 extern void printSensorData(void);
+extern void activateRec(MFRC522 );
 
 extern LocoNetSystemVariableClass sv;
 extern lnMsg       *LnPacket;

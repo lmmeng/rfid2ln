@@ -73,6 +73,9 @@ uint8_t oldUid[UID_LEN] = {0};
 boolean bSerialOk=false;
 
 boolean bSendReset = false;
+uint8_t uiNrEmptyReads = 0;
+
+
   
 /**
  * Initialize.
@@ -118,20 +121,22 @@ void setup() {
     }  
 }
 
+  unsigned long uiStartTime;
+  unsigned long uiActTime;
+  bool delaying = false;
+  unsigned char i=0;
+  unsigned char j=0;  
+  uint16_t uiDelayTime = 500;
+
+
 /**
  * Main loop.
  */
 void loop() {
-  SV_STATUS svStatus;
-  unsigned long uiStartTime;
-  unsigned long uiActTime;
-  bool delaying;
-  unsigned char i=0;
-  unsigned char j=0;  
-  uint16_t uiDelayTime = 1000;
+  if ( mfrc522.PICC_IsNewCardPresent()){
+    if(mfrc522.PICC_ReadCardSerial()){  
 
-  if ( mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){  
-     if(!delaying){   //Avoid to many/to fast reads of the same tag
+      if((!delaying) && (uiNrEmptyReads > 1) ){   //Avoid to many/to fast reads of the same tag
         // Show some details of the PICC (that is: the tag/card)
         if(bSerialOk){
            Serial.print(F("Card UID:"));
@@ -147,7 +152,7 @@ void loop() {
 	      uiStartTime = millis();
 	      delaying = true;
 
-           setMessageHeader(); //if the sensor address was changed, update the header 
+        setMessageHeader(); //if the sensor address was changed, update the header 
         SendPacketSensor.data[uiLnSendCheckSumIdx]= uiStartChkSen; //start with header check summ
         SendPacketSensor.data[uiLnSendMsbIdx]=0; //clear the byte for the ms bits
         for(i=0, j=5; i< UID_LEN; i++, j++){
@@ -177,9 +182,9 @@ void loop() {
         copyUid(mfrc522.uid.uidByte, oldUid, mfrc522.uid.size);
 
         bSendReset = true;
-        
-     } else { //if(!delaying)
-	       uiActTime = millis();	
+      } else { //if(!delaying)
+	       uiActTime = millis();
+
          if(compareUid(	mfrc522.uid.uidByte, oldUid, mfrc522.uid.size)){//same UID	
 	          if((uiActTime - uiStartTime) > uiDelayTime){
 	             delaying = false;
@@ -187,33 +192,43 @@ void loop() {
          } else { //new UID
             delaying = false;
          }
-     } //else 
-     
-     // Halt PICC
-     mfrc522.PICC_HaltA();
-     // Stop encryption on PCD
-     mfrc522.PCD_StopCrypto1();
-
+      } //else if(!delaying)
+    } //if(mfrc522.PICC_ReadCardSeri
+        // Halt PICC
+ //       mfrc522.PICC_HaltA();
+        // Stop encryption on PCD
+ //       mfrc522.PCD_StopCrypto1();
+    uiNrEmptyReads = 0;
+  } else { //if ( mfrc522.PICC_IsNewCardPresent() 
      /* Reset the sensor indication in Rocrail => RFID can be used as a normal sensor*/
-     if(bSendReset){
-        bSendReset = false;
+     if (!mfrc522.PICC_ReadCardSerial()){
+       if(bSendReset && (uiNrEmptyReads == MAX_EMPTY_READS)) {
+          bSendReset = false;
+          uint8_t iSenAddr = SV_ADDR_USER_BASE + 3;
+          uint16_t uiAddr =  (uiAddrSenFull - 1) / 2;    
+          SendPacketSensor.data[0] = 0xB2;
+          SendPacketSensor.data[1] = uiAddr & 0x7F; //ucAddrLoSen;
+          SendPacketSensor.data[2] = ((uiAddr >> 7) & 0x0F) | 0x40; //ucAddrHiSen & 0xEF;
+          if((uiAddrSenFull & 0x01) == 0){
+             SendPacketSensor.data[2] |= 0x20;
+          }
+          SendPacketSensor.data[3] = lnCalcCheckSumm(SendPacketSensor.data, 3);
+          
+          if(bSerialOk){
+             Serial.println(F("Reset sent"));
+          }
+          LocoNet.send( &SendPacketSensor, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time 
+       } //if(bSendReset     
+     
+       if(uiNrEmptyReads <= (MAX_EMPTY_READS + 2)){
+          uiNrEmptyReads++;
+       } 
+     } //if (!mfrc522.PICC_
+  } //else { //if ( mf
 
-        delay(10); 
-        uint8_t iSenAddr = SV_ADDR_USER_BASE + 3;
-        uint16_t uiAddr =  (uiAddrSenFull - 1) / 2;    
-        SendPacketSensor.data[0] = 0xB2;
-        SendPacketSensor.data[1] = uiAddr & 0x7F; //ucAddrLoSen;
-        SendPacketSensor.data[2] = ((uiAddr >> 7) & 0x0F) | 0x40; //ucAddrHiSen & 0xEF;
-        if((uiAddrSenFull & 0x01) == 0){
-          SendPacketSensor.data[2] |= 0x20;
-        }
-        SendPacketSensor.data[3] = lnCalcCheckSumm(SendPacketSensor.data, 3);
-        
-        LocoNet.send( &SendPacketSensor, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time 
-
-     }
-
-  } //if ( mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()){    
+  /*
+   * Loconet messages 
+   */
   LnPacket = LocoNet.receive() ;
   if( LnPacket){
     uint8_t msgLen = getLnMsgSize(LnPacket);
