@@ -170,10 +170,11 @@ void loop() {
         copyUid(mfrc522.uid.uidByte, oldUid, mfrc522.uid.size);
 
         bSendReset = true;
-      } //if(uiNrEmptyReads > 1){
-    } //if(mfrc522.PICC_ReadCardSeri
+      } //if(uiNrEmptyReads > 1)
+      
+       uiNrEmptyReads = 0;
 
-    uiNrEmptyReads = 0;
+    } //if(mfrc522.PICC_ReadCardSeri
 
   } else { //if ( mfrc522.PICC_IsNewCardPresent() 
      /* Reset the sensor indication in Rocrail => RFID can be used as a normal sensor*/
