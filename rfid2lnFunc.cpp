@@ -19,11 +19,12 @@ void dump_byte_array(byte *buffer, byte bufferSize) {
  * Function used to compare two RFID UIDs
  */
 bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize) {
-    bool retVal = true;
-    for (byte i = 0; i < bufferSize, retVal; i++) {
-        retVal = (buffer1[i] == buffer2[i]);
+    for (byte i = 0; i < bufferSize; i++) {
+      if(buffer1[i] != buffer2[i]){
+        return false;
+      }
     }
-  return retVal;
+  return true;
 }
 
 /**
@@ -31,7 +32,10 @@ bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize) {
  * Maybe easier with memcpy?
  */
 void copyUid (byte *buffIn, byte *buffOut, byte bufferSize) {
-    memcpy(buffIn, buffOut, bufferSize);
+//    memcpy(buffIn, buffOut, bufferSize);
+    for (byte i = 0; i < bufferSize; i++) {
+        buffOut[i] = buffIn[i];
+    }    
     
     if(bufferSize < UID_LEN){
        for (byte i = bufferSize; i < UID_LEN; i++) {

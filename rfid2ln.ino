@@ -67,7 +67,7 @@ uint8_t uiLnSendLength = 14; //14 bytes
 uint8_t uiLnSendMsbIdx = 12;
 uint8_t uiStartChkSen;
 
-uint8_t oldUid[NR_OF_RFID_PORTS][UID_LEN] = {0};
+uint8_t oldUid[NR_OF_RFID_PORTS][UID_LEN] = {2}; //send LN message if at supplying the tag is on reader.
 
 boolean bSerialOk = false;
 
