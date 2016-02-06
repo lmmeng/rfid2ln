@@ -131,7 +131,6 @@ void setup() {
 void loop() {
   if ( mfrc522.PICC_IsNewCardPresent()){
     if(mfrc522.PICC_ReadCardSerial()){  
-
       if(uiNrEmptyReads > 1){   //send an uid only once
         // Show some details of the PICC (that is: the tag/card)
         if(bSerialOk){
@@ -171,11 +170,12 @@ void loop() {
 
         bSendReset = true;
       } //if(uiNrEmptyReads > 1){
+            
+      uiNrEmptyReads = 0;
+
     } //if(mfrc522.PICC_ReadCardSeri
 
-    uiNrEmptyReads = 0;
-
-  } else { //if ( mfrc522.PICC_IsNewCardPresent() 
+   } else { //if ( mfrc522.PICC_IsNewCardPresent() 
      /* Reset the sensor indication in Rocrail => RFID can be used as a normal sensor*/
      if (!mfrc522.PICC_ReadCardSerial()){
        if(bSendReset && (uiNrEmptyReads == MAX_EMPTY_READS)) {
