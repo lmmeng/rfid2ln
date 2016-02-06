@@ -140,11 +140,6 @@ void loop() {
            Serial.println();
         }
 
-#ifdef _SER_DEBUG
-        // Show some details of the loconet setup
-        printSensorData();
-#endif
-
         setMessageHeader(); //if the sensor address was changed, update the header 
         SendPacketSensor.data[uiLnSendCheckSumIdx]= uiStartChkSen; //start with header check summ
         SendPacketSensor.data[uiLnSendMsbIdx]=0; //clear the byte for the ms bits
@@ -185,7 +180,6 @@ void loop() {
      if (!mfrc522.PICC_ReadCardSerial()){
        if(bSendReset && (uiNrEmptyReads == MAX_EMPTY_READS)) {
           bSendReset = false;
-          uint8_t iSenAddr = SV_ADDR_USER_BASE + 3;
           uint16_t uiAddr =  (uiAddrSenFull - 1) / 2;    
           SendPacketSensor.data[0] = 0xB2;
           SendPacketSensor.data[1] = uiAddr & 0x7F; //ucAddrLoSen;
@@ -204,9 +198,9 @@ void loop() {
        if(uiNrEmptyReads <= (MAX_EMPTY_READS + 1)){
           uiNrEmptyReads++;
        } 
-     } else { //if (!mfrc522.PICC_
-       uiNrEmptyReads = 0; //reset the number of consecutive falses
-     }
+     } //else { //if (!mfrc522.PICC_
+      // uiNrEmptyReads = 0; //reset the number of consecutive falses
+     //}
   } //else { //if ( mf
 
   /*
