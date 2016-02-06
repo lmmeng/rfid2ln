@@ -121,8 +121,8 @@ void setup() {
     }  
 }
 
-  unsigned char i=0;
-  unsigned char j=0;  
+//  unsigned char i=0;
+//  unsigned char j=0;  
 
 
 /**
@@ -148,7 +148,7 @@ void loop() {
         setMessageHeader(); //if the sensor address was changed, update the header 
         SendPacketSensor.data[uiLnSendCheckSumIdx]= uiStartChkSen; //start with header check summ
         SendPacketSensor.data[uiLnSendMsbIdx]=0; //clear the byte for the ms bits
-        for(i=0, j=5; i< UID_LEN; i++, j++){
+        for(uint8_t i=0, j=5; i< UID_LEN; i++, j++){
            if(mfrc522.uid.size > i){
               SendPacketSensor.data[j] = mfrc522.uid.uidByte[i] & 0x7F; //loconet bytes haver only 7 bits;
                                                                // MSbit is transmited in the SendPacket.data[10]
@@ -214,29 +214,7 @@ void loop() {
    */
   LnPacket = LocoNet.receive() ;
   if( LnPacket){
-
     lnDecodeMessage(LnPacket);
-
-#if 0
-    uint8_t msgLen = getLnMsgSize(LnPacket);
-     
-    //Change the board & sensor addresses. Changing the board address is working
-    if(msgLen == 0x10){  //XFERmessage, check if it is for me. Used to change the addresses
-      if((LnPacket->data[3] == ucBoardAddrLo) || (LnPacket->data[3] == 0)){ //my low address or query
-        if((LnPacket->data[4] == ucBoardAddrHi) || (LnPacket->data[4] == 0x7F)){ ////my high address or query
-           //svStatus = sv.processMessage(LnPacket);
-         
-           processXferMess(LnPacket, &SendPacket);
-        
-           /*5 sec timeout.*/
-           LN_STATUS lnSent = LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time   
-        
-           calcSenAddr();
-//           setMessageHeader(); //if the sensor address was changed, update the header 
-        } //if(LnPacket->data[4]               
-      } //if(LnPacket->data[3]
-    } //if(msgLen == 0x10)
-#endif    
   }//if( LnPacket)
 
 } 
