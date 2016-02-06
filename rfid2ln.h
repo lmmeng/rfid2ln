@@ -99,7 +99,6 @@ extern uint8_t lnCalcCheckSumm(uint8_t *cMessage, uint8_t cMesLen);
 extern void boardSetup(void);
 extern void calcSenAddr(void);
 extern void printSensorData(void);
-extern void activateRec(MFRC522 );
 extern void lnDecodeMessage(lnMsg *LnPacket);
 
 extern LocoNetSystemVariableClass sv;
