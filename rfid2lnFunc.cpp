@@ -1,3 +1,4 @@
+
 #include <SPI.h>
 #include <MFRC522.h>
 #include <LocoNet.h>
@@ -18,12 +19,11 @@ void dump_byte_array(byte *buffer, byte bufferSize) {
  * Function used to compare two RFID UIDs
  */
 bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize) {
-    for (byte i = 0; i < bufferSize; i++) {
-        if(buffer1[i] != buffer2[i]){
-//          return false;
-        }
+    bool retVal = true;
+    for (byte i = 0; i < bufferSize, retVal; i++) {
+        retVal = (buffer1[i] == buffer2[i]);
     }
-  return true;
+  return retVal;
 }
 
 /**
@@ -31,11 +31,7 @@ bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize) {
  * Maybe easier with memcpy?
  */
 void copyUid (byte *buffIn, byte *buffOut, byte bufferSize) {
-    for (byte i = 0; i < bufferSize; i++) {
-        buffOut[i] = buffIn[i];
-    }
-
-//    memcpy(buffIn, buffOut, bufferSize);
+    memcpy(buffIn, buffOut, bufferSize);
     
     if(bufferSize < UID_LEN){
        for (byte i = bufferSize; i < UID_LEN; i++) {
@@ -44,29 +40,22 @@ void copyUid (byte *buffIn, byte *buffOut, byte bufferSize) {
     }
 }
 
-/**
- * Function used to fill the constant header of a loconet message
- * The message "header" (OPC, length, message type & board address configurated only once 
- * at begining or if the address is changed over loconet
- */
-void setMessageHeader(void){
+void setMessageHeader(uint8_t port, uint8_t index){
     unsigned char k = 0;
-    SendPacketSensor.data[0] = 0xE4; //OPC - variable length message 
-    SendPacketSensor.data[1] = uiLnSendLength; //14 bytes length
-    SendPacketSensor.data[2] = 0x41; //report type 
-    SendPacketSensor.data[3] = ucAddrHiSen; //sensor address high
-    SendPacketSensor.data[4] = ucAddrLoSen; //sensor address low 
+    SendPacketSensor[index].data[0] = 0xE4; //OPC - variable length message 
+    SendPacketSensor[index].data[1] = uiLnSendLength; //14 bytes length
+    SendPacketSensor[index].data[2] = 0x41; //report type 
+    SendPacketSensor[index].data[3] = ucAddrHiSen[port]; //sensor address high
+    SendPacketSensor[index].data[4] = ucAddrLoSen[port]; //sensor address low 
     
-    SendPacketSensor.data[uiLnSendCheckSumIdx]=0xFF;
+    SendPacketSensor[index].data[uiLnSendCheckSumIdx]=0xFF;
     for(k=0; k<5;k++){
-      SendPacketSensor.data[uiLnSendCheckSumIdx] ^= SendPacketSensor.data[k];
+      SendPacketSensor[index].data[uiLnSendCheckSumIdx] ^= SendPacketSensor[index].data[k];
     }
 }
 
-/**
- * Loconet programming (OPC_PEER_XFER) messages decoding function.
- */
 uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
+    
     unsigned char ucPeerRCommand = 0;
     unsigned char ucPeerRSvIndex = 0;
     unsigned char ucPeerRSvValue = 0;
@@ -123,9 +112,14 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
                 }
                 cOutBuf->data[0x0B] = 0x7F;
                 cOutBuf->data[0x0E] = 0x7F;
-            } else if (ucPeerRSvIndex < (NR_OF_PORTS * 3 + 3)) { //nr_of_ports (1) * 3 register starting with the address 3
-                if ((ucPeerRSvIndex % 3) != 0) { // do not change the type (leave it as IN)
-                    sv.writeSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex, ucPeerRSvValue); //save the new value
+            } else if (ucPeerRSvIndex < (TOTAL_NR_OF_PORTS * 3 + 3)) { //nr_of_ports (1) * 3 register starting with the address 3
+                sv.writeSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex, ucPeerRSvValue); //save the new value
+                if ((ucPeerRSvIndex % 3) == 0) { // port type. If output, increase the total number of outputs
+                   if(ucPeerRSvValue == 0x10){
+                      bUpdateOutputs = true; //activate the outputs structure update 
+                      outputs[outsNr].idx = ucPeerRSvIndex;
+                      outsNr++;
+                   }
                 }
                 cOutBuf->data[0x0B] = ucBoardAddrHi; 
                 ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex);
@@ -175,7 +169,7 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
 }
 
 /**********char lnCalcCheckSumm(...)**********************
- * Loconet checksumm calculation function
+ *
  *
  ******************************/
 uint8_t lnCalcCheckSumm(uint8_t *cMessage, uint8_t cMesLen) {
@@ -226,11 +220,14 @@ void boardSetup(void){
        sv.writeSVStorage(SV_ADDR_SERIAL_NUMBER_H, 0x56);
        sv.writeSVStorage(SV_ADDR_SERIAL_NUMBER_L, 0x78);
 
-       ucSenType=0x0F;
-       uint8_t iSenAddr = SV_ADDR_USER_BASE + 3; 
-       sv.writeSVStorage(iSenAddr+2, 0);
-       sv.writeSVStorage(iSenAddr+1, 0);
-       sv.writeSVStorage(iSenAddr, ucSenType);
+       int iSenAddr = 0;
+       for(int i=0; i<NR_OF_RFID_PORTS; i++){
+          ucSenType[i]=0x0F;
+          iSenAddr = SV_ADDR_USER_BASE + 3 + 3*i;         
+          sv.writeSVStorage(iSenAddr+2, i*0x20); //1 for port1, 2 for port 2
+          sv.writeSVStorage(iSenAddr+1, 0);
+          sv.writeSVStorage(iSenAddr, ucSenType[i]);
+       }
     } else {
        if(bSerialOk) { //serial interface ok
           for(uint8_t i = 0; i<verLen; i++){
@@ -250,34 +247,27 @@ void boardSetup(void){
  * Recalculate the addresses printed / sent with RFID messages.
  * Needed at the begining and after the sensor address reprogramming over Loconet
  */
-void calcSenAddr(void){
-    uint8_t iSenAddr = SV_ADDR_USER_BASE + 3;         
-    // Rocrail compatible addressing
-    uiAddrSenFull = 256 * (sv.readSVStorage(iSenAddr+2) & 0x0F) + 2 * sv.readSVStorage(iSenAddr+1) +
-                    (sv.readSVStorage(iSenAddr+2) >> 5) +1;
+void calcSenAddr(uint8_t port){
+    uint8_t iSenAddr = 0;
+    
+       iSenAddr = SV_ADDR_USER_BASE + 3 + 3*port;         
+       uiAddrSenFull[port] = 256 * (sv.readSVStorage(iSenAddr+2) & 0x0F) + 2 * sv.readSVStorage(iSenAddr+1) +
+                    (sv.readSVStorage(iSenAddr+2) >> 5) + 1;
 
-    ucAddrHiSen = (uiAddrSenFull >> 7) & 0x7F;
-    ucAddrLoSen = uiAddrSenFull & 0x7F;        
-    ucSenType = sv.readSVStorage(iSenAddr); //"sensor" type = in  
+       ucAddrHiSen[port] = (uiAddrSenFull[port] >> 7) & 0x7F;
+       ucAddrLoSen[port] = uiAddrSenFull[port] & 0x7F;        
+       ucSenType[port] = sv.readSVStorage(iSenAddr); //"sensor" type = in
+       setMessageHeader(port, port);
 }
 
-void printSensorData(void){
-    Serial.print(F("Full sensor addr: "));
-    Serial.println(uiAddrSenFull);
-    Serial.print(F("Sensor AddrH: "));
-    Serial.print(ucAddrHiSen);
-    Serial.print(F(" Sensor AddrL: "));
-    Serial.print(ucAddrLoSen);
-    Serial.println();  
-}
-
-/*
- * The function sending to the MFRC522 the needed commands to activate the reception
- */
-void activateRec(MFRC522 mfrc522){
-    mfrc522.PCD_WriteRegister(mfrc522.FIFODataReg,mfrc522.PICC_CMD_REQA);
-    mfrc522.PCD_WriteRegister(mfrc522.CommandReg,mfrc522.PCD_Transceive);  
-    mfrc522.PCD_WriteRegister(mfrc522.BitFramingReg, 0x87);    
+void printSensorData(uint8_t port){
+       Serial.print(F("Full sensor addr: "));
+       Serial.println(uiAddrSenFull[port]);
+       Serial.print(F("Sensor AddrH: "));
+       Serial.print(ucAddrHiSen[port]);
+       Serial.print(F(" Sensor AddrL: "));
+       Serial.print(ucAddrLoSen[port]);
+       Serial.println();  
 }
 
 /*
@@ -298,11 +288,17 @@ void lnDecodeMessage(lnMsg *LnPacket)
            /*5 sec timeout.*/
            LN_STATUS lnSent = LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time   
         
-           calcSenAddr();
-//           setMessageHeader(); //if the sensor address was changed, update the header 
+          // Rocrail compatible addressing
+          for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
+            calcSenAddr(i);
+
+#ifdef _SER_DEBUG
+            if (bSerialOk) {
+              printSensorData(i);
+            }
+#endif
+	  }//for(uint8_t i
         } //if(LnPacket->data[4]               
       } //if(LnPacket->data[3]
     } //if(msgLen == 0x10)
 }
-
-
