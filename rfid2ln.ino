@@ -86,6 +86,8 @@ uint8_t uiRfidPort = 0;
 boolean bSendReset[NR_OF_RFID_PORTS] = {false};
 uint8_t uiNrEmptyReads[NR_OF_RFID_PORTS] = {0};
 
+uint8_t uiActReaders = 0;
+
 
 /**
  * Initialize.
@@ -126,6 +128,12 @@ void setup() {
 
   for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
     mfrc522[i].PCD_Init(mfrc522Cs[i], RST_PIN);
+    
+    /* read and printout the MFRC522 version (valid values 0x91 & 0x92)*/
+    byte readReg = mfrc522[i].PCD_ReadRegister(mfrc522[i].VersionReg);
+    if(readReg){
+      uiActReaders++;
+    }
     if (bSerialOk) {
       printSensorData(i);
     }
@@ -146,7 +154,7 @@ void loop() {
    * Read the TAGs
    */
   //  for (uint8_t port = 0; port < NR_OF_RFID_PORTS; port++) {
-  if (NR_OF_RFID_PORTS > 0) {
+  if (uiActReaders > 0) {
     if (uiBufCnt < LN_BUFF_LEN) { //if buffer not full
       if ( mfrc522[uiRfidPort].PICC_IsNewCardPresent()) {
         if (mfrc522[uiRfidPort].PICC_ReadCardSerial()) { //if tag data
@@ -193,10 +201,9 @@ void loop() {
             bSendReset[uiRfidPort] = true;
           } //if(uiNrEmptyReads[uiRfidPort] > 1){
 
+          uiNrEmptyReads[uiRfidPort] = 0;
+          
         } //if(mfrc522[uiRfidPort].PICC_ReadCardSerial())
-
-        uiNrEmptyReads[uiRfidPort] = 0;
-
       } else { //if ( mfrc522.PICC_IsNewCardPresent()
         /* Reset the sensor indication in Rocrail => RFID can be used as a normal sensor*/
         if (!mfrc522[uiRfidPort].PICC_ReadCardSerial()) {
@@ -227,7 +234,7 @@ void loop() {
       }   // else if ( mfrc522.PICC_IsNewCardPresent()  
 
       uiRfidPort++;
-      if (uiRfidPort == NR_OF_RFID_PORTS) {
+      if (uiRfidPort == uiActReaders) {
         uiRfidPort = 0;
       }
     } //if(uiBufCnt < LN_BUFF_LEN){
