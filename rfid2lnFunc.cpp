@@ -280,4 +280,29 @@ void activateRec(MFRC522 mfrc522){
     mfrc522.PCD_WriteRegister(mfrc522.BitFramingReg, 0x87);    
 }
 
+/*
+ * The function to decode the received ln message
+ */
+void lnDecodeMessage(lnMsg *LnPacket)
+{
+    uint8_t msgLen = getLnMsgSize(LnPacket);
+     
+    //Change the board & sensor addresses. 
+    if(msgLen == 0x10){  //XFERmessage, check if it is for me. Used to change the addresses
+      if((LnPacket->data[3] == ucBoardAddrLo) || (LnPacket->data[3] == 0)){ //my low address or query
+        if((LnPacket->data[4] == ucBoardAddrHi) || (LnPacket->data[4] == 0x7F)){ ////my high address or query
+           //svStatus = sv.processMessage(LnPacket);
+         
+           processXferMess(LnPacket, &SendPacket);
+        
+           /*5 sec timeout.*/
+           LN_STATUS lnSent = LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time   
+        
+           calcSenAddr();
+//           setMessageHeader(); //if the sensor address was changed, update the header 
+        } //if(LnPacket->data[4]               
+      } //if(LnPacket->data[3]
+    } //if(msgLen == 0x10)
+}
+
 

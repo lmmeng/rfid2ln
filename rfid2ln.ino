@@ -204,7 +204,9 @@ void loop() {
        if(uiNrEmptyReads <= (MAX_EMPTY_READS + 1)){
           uiNrEmptyReads++;
        } 
-     } //if (!mfrc522.PICC_
+     } else { //if (!mfrc522.PICC_
+       uiNrEmptyReads = 0; //reset the number of consecutive falses
+     }
   } //else { //if ( mf
 
   /*
@@ -212,6 +214,10 @@ void loop() {
    */
   LnPacket = LocoNet.receive() ;
   if( LnPacket){
+
+    lnDecodeMessage(LnPacket);
+
+#if 0
     uint8_t msgLen = getLnMsgSize(LnPacket);
      
     //Change the board & sensor addresses. Changing the board address is working
@@ -230,6 +236,7 @@ void loop() {
         } //if(LnPacket->data[4]               
       } //if(LnPacket->data[3]
     } //if(msgLen == 0x10)
+#endif    
   }//if( LnPacket)
 
 } 

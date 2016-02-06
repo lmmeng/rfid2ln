@@ -100,6 +100,7 @@ extern void boardSetup(void);
 extern void calcSenAddr(void);
 extern void printSensorData(void);
 extern void activateRec(MFRC522 );
+extern void lnDecodeMessage(lnMsg *LnPacket);
 
 extern LocoNetSystemVariableClass sv;
 extern lnMsg       *LnPacket;
