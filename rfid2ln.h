@@ -1,4 +1,4 @@
- /**
+/**
  * ----------------------------------------------------------------------------
 * Typical pin layout used - MFRC522:
  * -----------------------------------------------------------------------------------------
@@ -30,12 +30,6 @@
 
 #include <LocoNet.h>
 
-#define NR_OF_RFID_PORTS     2
-#define TOTAL_NR_OF_PORTS    8
-
-#define MANUF_ID        13          /* DIY DCC*/
-#define BOARD_TYPE      5           /* something for sv.init*/
-
 //#define UNO_LM /*my special UNO connections, to can use the same adaptor as for leonardo*/
 
 #if ARDUINO >= 10500 //the board naming scheme is supported from Arduino 1.5.0
@@ -56,6 +50,12 @@
   #define SS_1_PIN        5           /* Configurable, see typical pin layout above*/   
   #define SS_2_PIN        3           /* Configurable, see typical pin layout above*/   
 #endif 
+
+#define NR_OF_RFID_PORTS     2
+#define TOTAL_NR_OF_PORTS    8
+
+#define MANUF_ID        13          /* DIY DCC*/
+#define BOARD_TYPE      5           /* something for sv.init*/
 
     // --------------------------------------------------------
     // OPC_PEER_XFER SV_CMD's
@@ -95,6 +95,9 @@
 #define UID_LEN         7
 #define LN_BUFF_LEN    10
 
+#define MAX_EMPTY_READS 2
+
+
 extern void dump_byte_array(byte *buffer, byte bufferSize);
 extern bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize);
 extern void copyUid(byte *buffIn, byte *buffOut, byte bufferSize);
@@ -104,6 +107,7 @@ extern uint8_t lnCalcCheckSumm(uint8_t *cMessage, uint8_t cMesLen);
 extern void boardSetup(void);
 extern void calcSenAddr(uint8_t);
 extern void printSensorData(uint8_t);
+extern void lnDecodeMessage(lnMsg *LnPacket);
 
 extern uint8_t boardVer[];
 extern char verLen;

@@ -83,6 +83,10 @@ boolean bUpdateOutputs = false;
 
 uint8_t uiRfidPort = 0;
 
+boolean bSendReset[NR_OF_RFID_PORTS] = {false};
+uint8_t uiNrEmptyReads[NR_OF_RFID_PORTS] = {0};
+
+
 /**
  * Initialize.
  */
@@ -107,19 +111,19 @@ void setup() {
   sv.init(MANUF_ID, BOARD_TYPE, 1, 1); //to see if needed just once (saved in EEPROM)
 
 #if EE_ERASE
-  for(uint8_t i = 0; i<verLen; i++){
+  for (uint8_t i = 0; i < verLen; i++) {
     EEPROM.write(255 - verLen + i, 0xff);
   }
 #endif
 
   boardSetup();
   for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
-     calcSenAddr(i);
+    calcSenAddr(i);
   }
 
   SPI.begin();        // Init SPI bus
-//  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0)); //spi speed of MFRC522 - 10 MHz
-  
+  //  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0)); //spi speed of MFRC522 - 10 MHz
+
   for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
     mfrc522[i].PCD_Init(mfrc522Cs[i], RST_PIN);
     if (bSerialOk) {
@@ -132,161 +136,134 @@ void setup() {
   }
 }
 
-//  SV_STATUS svStatus;
-  unsigned long uiStartTime;
-  unsigned long uiActTime;
-  unsigned char i = 0;
-  unsigned char j = 0;
-  uint16_t uiDelayTime = 300; //*ms
 
 
 /**
  * Main loop.
  */
 void loop() {
-/*************
- * Read the TAGs
- */
-//  for (uint8_t port = 0; port < NR_OF_RFID_PORTS; port++) {
-  if(NR_OF_RFID_PORTS > 0){
-    if(uiBufCnt < LN_BUFF_LEN){  //if buffer not full
-      if ( mfrc522[uiRfidPort].PICC_IsNewCardPresent() && mfrc522[uiRfidPort].PICC_ReadCardSerial()) { //if tag data
-        static bool delaying = false;
-        if (!delaying){   //Avoid to many/to fast reads of the same tag
-          // Show some details of the PICC (that is: the tag/card)
-          if (bSerialOk) {
-            Serial.print(F("Port: "));
-            Serial.print(uiRfidPort);
-            Serial.print(F(" Card UID:"));
-            dump_byte_array(mfrc522[uiRfidPort].uid.uidByte, mfrc522[uiRfidPort].uid.size);
-            Serial.println();
-          }
-
-          uiStartTime = millis();
-          delaying = true;
-
-          setMessageHeader(uiRfidPort, uiBufWrIdx); //if the sensor address was changed, update the header
- 
-          /****
-          * Put the new data in buffer
-          */
-          SendPacketSensor[uiBufWrIdx].data[uiLnSendCheckSumIdx] = uiStartChkSen; //start with header check summ
-          SendPacketSensor[uiBufWrIdx].data[uiLnSendMsbIdx] = 0; //clear the byte for the ms bits
-          for (i = 0, j = 5; i < UID_LEN; i++, j++) {
-            if (mfrc522[uiRfidPort].uid.size > i) {
-              SendPacketSensor[uiBufWrIdx].data[j] = mfrc522[uiRfidPort].uid.uidByte[i] & 0x7F; //loconet bytes have only 7 bits;
-              // MSbit is transmited in the SendPacket.data[10]
-              if (mfrc522[uiRfidPort].uid.uidByte[i] & 0x80) {
-                 SendPacketSensor[uiBufWrIdx].data[uiLnSendMsbIdx] |= 1 << i;
-              }
-              SendPacketSensor[uiBufWrIdx].data[uiLnSendCheckSumIdx] ^= SendPacketSensor[uiBufWrIdx].data[j]; //calculate the checksumm
-            } else { //if (mfrc522[port].uid.
-              SendPacketSensor[uiBufWrIdx].data[j] = 0;
+  /*************
+   * Read the TAGs
+   */
+  //  for (uint8_t port = 0; port < NR_OF_RFID_PORTS; port++) {
+  if (NR_OF_RFID_PORTS > 0) {
+    if (uiBufCnt < LN_BUFF_LEN) { //if buffer not full
+      if ( mfrc522[uiRfidPort].PICC_IsNewCardPresent()) {
+        if (mfrc522[uiRfidPort].PICC_ReadCardSerial()) { //if tag data
+          if (uiNrEmptyReads[uiRfidPort] > 1) { //send an uid only once
+            // Show some details of the PICC (that is: the tag/card)
+            if (bSerialOk) {
+              Serial.print(F("Port: "));
+              Serial.print(uiRfidPort);
+              Serial.print(F(" Card UID:"));
+              dump_byte_array(mfrc522[uiRfidPort].uid.uidByte, mfrc522[uiRfidPort].uid.size);
+              Serial.println();
             }
-          } //for(i=0
 
-          SendPacketSensor[uiBufWrIdx].data[uiLnSendCheckSumIdx] ^= SendPacketSensor[uiBufWrIdx].data[uiLnSendMsbIdx]; //calculate the checksumm
+            setMessageHeader(uiRfidPort, uiBufWrIdx); //if the sensor address was changed, update the header
 
-#ifdef _SER_DEBUG
-          if (bSerialOk) {
-            Serial.print(F("LN mess to be sent:"));
-            dump_byte_array(SendPacketSensor[uiBufWrIdx].data, uiLnSendLength);
-            Serial.println();
+            /****
+            * Put the new data in buffer
+            */
+            SendPacketSensor[uiBufWrIdx].data[uiLnSendCheckSumIdx] = uiStartChkSen; //start with header check summ
+            SendPacketSensor[uiBufWrIdx].data[uiLnSendMsbIdx] = 0; //clear the byte for the ms bits
+            for (uint8_t i = 0, j = 5; i < UID_LEN; i++, j++) {
+              if (mfrc522[uiRfidPort].uid.size > i) {
+                SendPacketSensor[uiBufWrIdx].data[j] = mfrc522[uiRfidPort].uid.uidByte[i] & 0x7F; //loconet bytes have only 7 bits;
+                // MSbit is transmited in the SendPacket.data[10]
+                if (mfrc522[uiRfidPort].uid.uidByte[i] & 0x80) {
+                  SendPacketSensor[uiBufWrIdx].data[uiLnSendMsbIdx] |= 1 << i;
+                }
+                SendPacketSensor[uiBufWrIdx].data[uiLnSendCheckSumIdx] ^= SendPacketSensor[uiBufWrIdx].data[j]; //calculate the checksumm
+              } else { //if (mfrc522[port].uid.
+                SendPacketSensor[uiBufWrIdx].data[j] = 0;
+              }
+            } //for(i=0
+
+            SendPacketSensor[uiBufWrIdx].data[uiLnSendCheckSumIdx] ^= SendPacketSensor[uiBufWrIdx].data[uiLnSendMsbIdx]; //calculate the checksumm
+
+            if (uiBufWrIdx < LN_BUFF_LEN) {
+              uiBufWrIdx++;
+            } else {
+              uiBufWrIdx = 0;
+            }
+            uiBufCnt++;
+
+            copyUid(mfrc522[uiRfidPort].uid.uidByte, oldUid[uiRfidPort], mfrc522[uiRfidPort].uid.size);
+            bSendReset[uiRfidPort] = true;
+          } //if(uiNrEmptyReads[uiRfidPort] > 1){
+
+        } //if(mfrc522[uiRfidPort].PICC_ReadCardSerial())
+
+        uiNrEmptyReads[uiRfidPort] = 0;
+
+      } else { //if ( mfrc522.PICC_IsNewCardPresent()
+        /* Reset the sensor indication in Rocrail => RFID can be used as a normal sensor*/
+        if (!mfrc522[uiRfidPort].PICC_ReadCardSerial()) {
+          if (bSendReset[uiRfidPort] && (uiNrEmptyReads[uiRfidPort] == MAX_EMPTY_READS)) {
+            bSendReset[uiRfidPort] = false;
+            uint16_t uiAddr =  (uiAddrSenFull[uiRfidPort] - 1) / 2;
+            SendPacketSensor[uiBufWrIdx].data[0] = 0xB2;
+            SendPacketSensor[uiBufWrIdx].data[1] = uiAddr & 0x7F; //ucAddrLoSen;
+            SendPacketSensor[uiBufWrIdx].data[2] = ((uiAddr >> 7) & 0x0F) | 0x40; //ucAddrHiSen & 0xEF;
+            if ((uiAddrSenFull[uiRfidPort] & 0x01) == 0) {
+              SendPacketSensor[uiBufWrIdx].data[2] |= 0x20;
+            }
+            SendPacketSensor[uiBufWrIdx].data[3] = lnCalcCheckSumm(SendPacketSensor[uiBufWrIdx].data, 3);
+
+            if (uiBufWrIdx < LN_BUFF_LEN) {
+              uiBufWrIdx++;
+            } else {
+              uiBufWrIdx = 0;
+            }
+            uiBufCnt++;
+          
+          } //if(bSendReset
+
+          if (uiNrEmptyReads[uiRfidPort] <= (MAX_EMPTY_READS + 1)) {
+            uiNrEmptyReads[uiRfidPort]++;
           }
-#endif
-          if(uiBufWrIdx < LN_BUFF_LEN){
-            uiBufWrIdx++;
-          } else {
-            uiBufWrIdx = 0;
-          }
-          uiBufCnt++;
- 
-          copyUid(mfrc522[uiRfidPort].uid.uidByte, oldUid[uiRfidPort], mfrc522[uiRfidPort].uid.size);
-        } else { //if(!delaying)
-          uiActTime = millis();
-          if (compareUid(	mfrc522[uiRfidPort].uid.uidByte, oldUid[uiRfidPort], mfrc522[uiRfidPort].uid.size)) { //same UID
-            if ((uiActTime - uiStartTime) > uiDelayTime) {
-              delaying = false;
-            } //if((uiActTime
-          } else { //new UID
-            delaying = false;
-          }
-        } //else
+        } //if (!mfrc522.PICC_
+      }   // else if ( mfrc522.PICC_IsNewCardPresent()  
 
-        // Halt PICC
-//        mfrc522[port].PICC_HaltA();
-        // Stop encryption on PCD
-//        mfrc522[port].PCD_StopCrypto1();
-
-      } //if ( mfrc522_1.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial())
-    }   // if(uiBufCnt < LN_BUFF_LEN){
-//  } //for(uint8_t i = 0; i<NR_OF_PORTS; i++)
-
-    uiRfidPort++;
-    if(uiRfidPort == NR_OF_RFID_PORTS){
-       uiRfidPort = 0;
-    }
+      uiRfidPort++;
+      if (uiRfidPort == NR_OF_RFID_PORTS) {
+        uiRfidPort = 0;
+      }
+    } //if(uiBufCnt < LN_BUFF_LEN){
   } //if(NR_OF_RFID_PORTS
 
   /******
    * send the tag data in the loconet bus
    */
-  if(uiBufCnt > 0){
+  if (uiBufCnt > 0) {
 #ifdef _SER_DEBUG
-        if (bSerialOk) {
-          Serial.print(F("LN send mess:"));
-          dump_byte_array(SendPacketSensor[uiBufRdIdx].data, uiLnSendLength);
-          Serial.println();
-        }
+    if (bSerialOk) {
+      Serial.print(F("LN send mess:"));
+      dump_byte_array(SendPacketSensor[uiBufRdIdx].data, uiLnSendLength);
+      Serial.println();
+    }
 #endif
 
-     LN_STATUS lnSent = LocoNet.send( &SendPacketSensor[uiBufRdIdx], LN_BACKOFF_MAX - (ucBoardAddrLo % 10));   //trying to differentiate the ln answer time
+    LN_STATUS lnSent = LocoNet.send( &SendPacketSensor[uiBufRdIdx], LN_BACKOFF_MAX - (ucBoardAddrLo % 10));   //trying to differentiate the ln answer time
 
-     if(lnSent = LN_DONE){ //message sent OK
-        if(uiBufRdIdx < LN_BUFF_LEN){
-           uiBufRdIdx++;
-        } else {
-           uiBufRdIdx=0;
-        }
-        uiBufCnt--;
-     } //if(lnSent = LN_DONE)
+    if (lnSent = LN_DONE) { //message sent OK
+      if (uiBufRdIdx < LN_BUFF_LEN) {
+        uiBufRdIdx++;
+      } else {
+        uiBufRdIdx = 0;
+      }
+      uiBufCnt--;
+    } //if(lnSent = LN_DONE)
   } //if(uiBufCnt > 0){
 
   /************
    * Addresses programming over loconet
    */
-   
+
   LnPacket = LocoNet.receive() ;
   if ( LnPacket) { //new message sent by other
-    uint8_t msgLen = getLnMsgSize(LnPacket);
-    
-
-    //Change the board & sensor addresses. Changing the board address is working
-    if(msgLen == 0x10){  //XFERmessage, check if it is for me. Used to change the addresses
-      if((LnPacket->data[3] == ucBoardAddrLo) || (LnPacket->data[3] == 0)){ //my low address or query
-        if((LnPacket->data[4] == ucBoardAddrHi) || (LnPacket->data[4] == 0x7F)){ ////my high address or query
-          //svStatus = sv.processMessage(LnPacket);
-
-          processXferMess(LnPacket, &SendPacket);
-
-          /*blocking. If it works, to find out a non blocking version*/
-          LN_STATUS lnSent = LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10));   //trying to differentiate the ln answer time
-      
-          // Rocrail compatible addressing
-          for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
-            calcSenAddr(i);
-
-#ifdef _SER_DEBUG
-            if (bSerialOk) {
-              printSensorData(i);
-            }
-#endif
-	  }//for(uint8_t i
-        } //if(LnPacket->data[4]               
-      } //if(LnPacket->data[3]
-    } //if(msgLen == 0x10)
+    lnDecodeMessage(LnPacket);
   }//if( LnPacket)
 }
-
-
 

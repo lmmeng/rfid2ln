@@ -270,3 +270,35 @@ void printSensorData(uint8_t port){
        Serial.println();  
 }
 
+/*
+ * The function to decode the received ln message
+ */
+void lnDecodeMessage(lnMsg *LnPacket)
+{
+    uint8_t msgLen = getLnMsgSize(LnPacket);
+     
+    //Change the board & sensor addresses. 
+    if(msgLen == 0x10){  //XFERmessage, check if it is for me. Used to change the addresses
+      if((LnPacket->data[3] == ucBoardAddrLo) || (LnPacket->data[3] == 0)){ //my low address or query
+        if((LnPacket->data[4] == ucBoardAddrHi) || (LnPacket->data[4] == 0x7F)){ ////my high address or query
+           //svStatus = sv.processMessage(LnPacket);
+         
+           processXferMess(LnPacket, &SendPacket);
+        
+           /*5 sec timeout.*/
+           LN_STATUS lnSent = LocoNet.send( &SendPacket, LN_BACKOFF_MAX - (ucBoardAddrLo % 10) );   //trying to differentiate the ln answer time   
+        
+          // Rocrail compatible addressing
+          for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
+            calcSenAddr(i);
+
+#ifdef _SER_DEBUG
+            if (bSerialOk) {
+              printSensorData(i);
+            }
+#endif
+	  }//for(uint8_t i
+        } //if(LnPacket->data[4]               
+      } //if(LnPacket->data[3]
+    } //if(msgLen == 0x10)
+}
