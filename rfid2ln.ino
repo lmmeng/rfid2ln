@@ -73,6 +73,10 @@ boolean bSerialOk = false;
 
 byte mfrc522Cs[] = {SS_1_PIN, SS_2_PIN};
 
+#if USE_INTERRUPT
+  byte mfrc522Irq[] = {IRQ_1_PIN, IRQ_2_PIN};
+#endif
+
 uint8_t uiBufWrIdx = 0;
 uint8_t uiBufRdIdx = 0;
 uint8_t uiBufCnt = 0;
@@ -87,6 +91,15 @@ uint8_t uiNrEmptyReads[NR_OF_RFID_PORTS] = {3}; //send LN message if at supplyin
 
 uint8_t uiActReaders = 0;
 
+
+#if USE_INTERRUPTS
+volatile boolean bNewInt[NR_OF_RFID_PORTS] = {false};
+unsigned char regVal = 0x7F;
+void activateRec(MFRC522 mfrc522);
+void clearInt(MFRC522 mfrc522);
+
+readCardIntArray readCardInt[] = {readCard1, readCard2};
+#endif
 
 /**
  * Initialize.
@@ -125,18 +138,38 @@ void setup() {
   SPI.begin();        // Init SPI bus
   //  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0)); //spi speed of MFRC522 - 10 MHz
 
+#if USE_INTERRUPT
+  regVal = 0xA0; //rx irq
+#endif
+  
   for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
     mfrc522[i].PCD_Init(mfrc522Cs[i], RST_PIN);
     
-    /* read and printout the MFRC522 version (valid values 0x91 & 0x92)*/
+    /* detect the active readers. If version read != 0 => reader active*/
     byte readReg = mfrc522[i].PCD_ReadRegister(mfrc522[i].VersionReg);
     if(readReg){
       uiActReaders++;
-    }
-    if (bSerialOk) {
-      printSensorData(i);
-    }
-  }
+
+
+#if USE_INTERRUPT
+      pinMode(mfrc522Irq[i], INPUT_PULLUP);
+
+      /* 
+       *  Allow the ... irq to be propagated to the IRQ pin
+       *  For test purposes propagate the IdleIrq and loAlert
+       */
+      mfrc522[i].PCD_WriteRegister(mfrc522[i].ComIEnReg,regVal);
+
+      delay(10);
+      attachInterrupt(digitalPinToInterrupt(mfrc522Irq[i]), readCard[i](), FALLING);
+      bNewInt[i] = false;
+#endif
+
+      if (bSerialOk) {
+        printSensorData(i);
+      }
+    } //if(readReg)
+  } //for(uint8_t i = 0
 
   if (bSerialOk) {
     Serial.println(F("************************************************"));
@@ -155,10 +188,12 @@ void loop() {
   //  for (uint8_t port = 0; port < NR_OF_RFID_PORTS; port++) {
   if (uiActReaders > 0) {
     if (uiBufCnt < LN_BUFF_LEN) { //if buffer not full
-
-      boolean cp = mfrc522[uiRfidPort].PICC_IsNewCardPresent();
-
-      if ( cp) {
+#if USE_INTERRUPT
+      if(bNewInt[uiRfidPort]){
+        bNewInt[uiRfidPort] = false;
+#else
+      if(mfrc522[uiRfidPort].PICC_IsNewCardPresent()) {
+#endif
         if (mfrc522[uiRfidPort].PICC_ReadCardSerial()) { //if tag data
           if (uiNrEmptyReads[uiRfidPort] > 1) { //send an uid only once
             // Show some details of the PICC (that is: the tag/card)
@@ -205,7 +240,7 @@ void loop() {
           uiNrEmptyReads[uiRfidPort] = 0;
           
         } //if(mfrc522[uiRfidPort].PICC_ReadCardSerial())
-      } else { //if ( mfrc522.PICC_IsNewCardPresent()
+      } else { //if newCard / newInt
         /* Reset the sensor indication in Rocrail => RFID can be used as a normal sensor*/
         boolean rc = mfrc522[uiRfidPort].PICC_ReadCardSerial();
         if (!rc) {

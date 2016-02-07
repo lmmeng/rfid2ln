@@ -8,7 +8,9 @@
  * -----------------------------------------------------------------------------------------
  * RST/Reset   RST          9             5         D9         RESET/ICSP-5     RST
  * SPI SS 1    SDA(SS)      10            53        D10        5                10
- * SPI SS 2    SDA(SS)      7             ?         D7         3                ?
+ * SPI SS 2    SDA(SS)      7             ?         D7         7                ?
+ * IRQ_1       IRQ          2             ?         2          2                ?
+ * IRQ_2       IRQ          3             ?         3          3                ?
  * SPI MOSI    MOSI         11 / ICSP-4   51        D11        ICSP-4           16
  * SPI MISO    MISO         12 / ICSP-1   50        D12        ICSP-1           14
  * SPI SCK     SCK          13 / ICSP-3   52        D13        ICSP-3           15
@@ -42,7 +44,11 @@
   #define LN_TX_PIN       6           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
   #define RST_PIN         9           /* Configurable, see typical pin layout above*/
   #define SS_1_PIN        5           /* Configurable, see typical pin layout above*/   
-  #define SS_2_PIN        3           /* Configurable, see typical pin layout above*/   
+  #define SS_2_PIN        7           /* Configurable, see typical pin layout above*/  
+  #if USE_INTERRUPTS          /* can be always active; just to remember me that USE_INTERRUPTS exists*/
+    #define IRQ_1_PIN     2           /* Configurable, see typical pin layout above*/  
+    #define IRQ_2_PIN     3           /* Configurable, see typical pin layout above*/  
+  #endif
   #endif     
 #else //older arduino IDE => initialising each board as it is used. I'm using Leonardo
   #define LN_TX_PIN       6           /* Arduino Pin used as Loconet Tx; Rx Pin is always the ICP Pin */
@@ -51,8 +57,9 @@
   #define SS_2_PIN        3           /* Configurable, see typical pin layout above*/   
 #endif 
 
-#define NR_OF_RFID_PORTS     2
-#define TOTAL_NR_OF_PORTS    8
+#define NR_OF_RFID_PORTS     2   /* Maximal number of RFID readers*/ 
+#define TOTAL_NR_OF_PORTS    8   /* Maximal number of I/Os */
+#define USE_INTERRUPTS       0   /* use interrupts or polling to detect new cards*/
 
 #define MANUF_ID        13          /* DIY DCC*/
 #define BOARD_TYPE      5           /* something for sv.init*/
@@ -92,11 +99,10 @@
 #define VER_LOW         0x01
 #define VER_HIGH        0X00
 
-#define UID_LEN         7
-#define LN_BUFF_LEN    10
+#define UID_LEN          7
+#define LN_BUFF_LEN     10
 
-#define MAX_EMPTY_READS 2
-
+#define MAX_EMPTY_READS  2
 
 extern void dump_byte_array(byte *buffer, byte bufferSize);
 extern bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize);
@@ -108,7 +114,18 @@ extern void boardSetup(void);
 extern void calcSenAddr(uint8_t);
 extern void printSensorData(uint8_t);
 extern void lnDecodeMessage(lnMsg *LnPacket);
-extern void activateRec(MFRC522 mfrc522);
+
+#if USE_INTERRUPTS
+  extern void activateRec(MFRC522 mfrc522);
+  extern void clearInt(MFRC522 mfrc522);
+  extern void readCard1(void);
+  extern void readCard2(void);
+  extern volatile boolean bNewInt[];
+  extern unsigned char regVal;
+
+  typedef void (*readCardIntArray) (void);
+  extern readCardIntArray readCardInt[];
+#endif
 
 extern uint8_t boardVer[];
 extern char verLen;

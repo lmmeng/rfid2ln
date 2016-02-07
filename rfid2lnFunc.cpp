@@ -307,6 +307,17 @@ void lnDecodeMessage(lnMsg *LnPacket)
     } //if(msgLen == 0x10)
 }
 
+#if USE_INTERRUPTS
+/*
+ * MFRC522 interrupt serving routines
+ */
+void readCard1(uint8_t){
+   bNewInt[0] = true;
+}
+
+void readCard2(uint8_t){
+   bNewInt[1] = true;
+}
 /*
  * The function sending to the MFRC522 the needed commands to activate the reception
  */
@@ -316,3 +327,10 @@ void activateRec(MFRC522 mfrc522){
     mfrc522.PCD_WriteRegister(mfrc522.BitFramingReg, 0x87);    
 }
 
+/*
+ * The function to clear the pending interrupt bits after interrupt serving routine
+ */
+void clearInt(MFRC522 mfrc522){
+   mfrc522.PCD_WriteRegister(mfrc522.ComIrqReg,0x7F);
+}
+#endif
