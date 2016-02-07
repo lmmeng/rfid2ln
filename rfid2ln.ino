@@ -67,7 +67,7 @@ uint8_t uiLnSendLength = 14; //14 bytes
 uint8_t uiLnSendMsbIdx = 12;
 uint8_t uiStartChkSen;
 
-uint8_t oldUid[NR_OF_RFID_PORTS][UID_LEN] = {2}; //send LN message if at supplying the tag is on reader.
+uint8_t oldUid[NR_OF_RFID_PORTS][UID_LEN] = {0}; 
 
 boolean bSerialOk = false;
 
@@ -83,8 +83,7 @@ boolean bUpdateOutputs = false;
 
 uint8_t uiRfidPort = 0;
 
-boolean bSendReset[NR_OF_RFID_PORTS] = {false};
-uint8_t uiNrEmptyReads[NR_OF_RFID_PORTS] = {0};
+uint8_t uiNrEmptyReads[NR_OF_RFID_PORTS] = {3}; //send LN message if at supplying the tag is on reader.
 
 uint8_t uiActReaders = 0;
 
@@ -201,19 +200,19 @@ void loop() {
             uiBufCnt++;
 
             copyUid(mfrc522[uiRfidPort].uid.uidByte, oldUid[uiRfidPort], mfrc522[uiRfidPort].uid.size);
-            bSendReset[uiRfidPort] = true;
           } //if(uiNrEmptyReads[uiRfidPort] > 1){
 
           uiNrEmptyReads[uiRfidPort] = 0;
           
         } //if(mfrc522[uiRfidPort].PICC_ReadCardSerial())
       } else { //if ( mfrc522.PICC_IsNewCardPresent()
- //       activateRec(mfrc522[uiRfidPort]);
         /* Reset the sensor indication in Rocrail => RFID can be used as a normal sensor*/
         boolean rc = mfrc522[uiRfidPort].PICC_ReadCardSerial();
         if (!rc) {
-          if (bSendReset[uiRfidPort] && (uiNrEmptyReads[uiRfidPort] == MAX_EMPTY_READS)) {
-            bSendReset[uiRfidPort] = false;
+          if (/*bSendReset[uiRfidPort] &&*/ (uiNrEmptyReads[uiRfidPort] == MAX_EMPTY_READS)) {
+            if (bSerialOk) {
+              Serial.println(F("Send reset: "));
+            }
             uint16_t uiAddr =  (uiAddrSenFull[uiRfidPort] - 1) / 2;
             SendPacketSensor[uiBufWrIdx].data[0] = 0xB2;
             SendPacketSensor[uiBufWrIdx].data[1] = uiAddr & 0x7F; //ucAddrLoSen;
