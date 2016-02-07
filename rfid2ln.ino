@@ -156,7 +156,10 @@ void loop() {
   //  for (uint8_t port = 0; port < NR_OF_RFID_PORTS; port++) {
   if (uiActReaders > 0) {
     if (uiBufCnt < LN_BUFF_LEN) { //if buffer not full
-      if ( mfrc522[uiRfidPort].PICC_IsNewCardPresent()) {
+
+      boolean cp = mfrc522[uiRfidPort].PICC_IsNewCardPresent();
+
+      if ( cp) {
         if (mfrc522[uiRfidPort].PICC_ReadCardSerial()) { //if tag data
           if (uiNrEmptyReads[uiRfidPort] > 1) { //send an uid only once
             // Show some details of the PICC (that is: the tag/card)
@@ -205,8 +208,10 @@ void loop() {
           
         } //if(mfrc522[uiRfidPort].PICC_ReadCardSerial())
       } else { //if ( mfrc522.PICC_IsNewCardPresent()
+ //       activateRec(mfrc522[uiRfidPort]);
         /* Reset the sensor indication in Rocrail => RFID can be used as a normal sensor*/
-        if (!mfrc522[uiRfidPort].PICC_ReadCardSerial()) {
+        boolean rc = mfrc522[uiRfidPort].PICC_ReadCardSerial();
+        if (!rc) {
           if (bSendReset[uiRfidPort] && (uiNrEmptyReads[uiRfidPort] == MAX_EMPTY_READS)) {
             bSendReset[uiRfidPort] = false;
             uint16_t uiAddr =  (uiAddrSenFull[uiRfidPort] - 1) / 2;

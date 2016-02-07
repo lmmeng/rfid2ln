@@ -108,6 +108,7 @@ extern void boardSetup(void);
 extern void calcSenAddr(uint8_t);
 extern void printSensorData(uint8_t);
 extern void lnDecodeMessage(lnMsg *LnPacket);
+extern void activateRec(MFRC522 mfrc522);
 
 extern uint8_t boardVer[];
 extern char verLen;

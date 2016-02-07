@@ -306,3 +306,13 @@ void lnDecodeMessage(lnMsg *LnPacket)
       } //if(LnPacket->data[3]
     } //if(msgLen == 0x10)
 }
+
+/*
+ * The function sending to the MFRC522 the needed commands to activate the reception
+ */
+void activateRec(MFRC522 mfrc522){
+    mfrc522.PCD_WriteRegister(mfrc522.FIFODataReg,mfrc522.PICC_CMD_REQA);
+    mfrc522.PCD_WriteRegister(mfrc522.CommandReg,mfrc522.PCD_Transceive);  
+    mfrc522.PCD_WriteRegister(mfrc522.BitFramingReg, 0x87);    
+}
+
