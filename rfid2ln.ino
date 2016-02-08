@@ -195,7 +195,7 @@ void loop() {
       if(mfrc522[uiRfidPort].PICC_IsNewCardPresent()) {
 #endif
         if (mfrc522[uiRfidPort].PICC_ReadCardSerial()) { //if tag data
-          if (uiNrEmptyReads[uiRfidPort] > 1) { //send an uid only once
+          if (uiNrEmptyReads[uiRfidPort] > 2) { //send an uid only once
             // Show some details of the PICC (that is: the tag/card)
             if (bSerialOk) {
               Serial.print(F("Port: "));
@@ -235,11 +235,16 @@ void loop() {
             uiBufCnt++;
 
             copyUid(mfrc522[uiRfidPort].uid.uidByte, oldUid[uiRfidPort], mfrc522[uiRfidPort].uid.size);
-          } //if(uiNrEmptyReads[uiRfidPort] > 1){
+          } //if(uiNrEmptyReads[uiRfidPort] > ...){          
 
           uiNrEmptyReads[uiRfidPort] = 0;
-          
+
         } //if(mfrc522[uiRfidPort].PICC_ReadCardSerial())
+
+#if USE_INTERRUPT
+        clearInt(mfrc522[uiRfidPort]);
+        activateRec(mfrc522[uiRfidPort]); //rearm the reading part of the mfrc522
+#endif          
       } else { //if newCard / newInt
         /* Reset the sensor indication in Rocrail => RFID can be used as a normal sensor*/
         boolean rc = mfrc522[uiRfidPort].PICC_ReadCardSerial();
