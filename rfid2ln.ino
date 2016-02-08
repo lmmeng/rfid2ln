@@ -131,9 +131,6 @@ void setup() {
 #endif
 
   boardSetup();
-  for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
-    calcSenAddr(i);
-  }
 
   SPI.begin();        // Init SPI bus
   //  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0)); //spi speed of MFRC522 - 10 MHz
@@ -149,6 +146,7 @@ void setup() {
     byte readReg = mfrc522[i].PCD_ReadRegister(mfrc522[i].VersionReg);
     if(readReg){
       uiActReaders++;
+      calcSenAddr(i);
 
 
 #if USE_INTERRUPT
@@ -170,6 +168,9 @@ void setup() {
       }
     } //if(readReg)
   } //for(uint8_t i = 0
+  
+  Serial.print(F("Nr. of active RFID readers: "));
+  Serial.println(uiActReaders);
 
   if (bSerialOk) {
     Serial.println(F("************************************************"));
