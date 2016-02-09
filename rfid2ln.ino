@@ -205,27 +205,7 @@ void loop() {
               Serial.println();
             }
 
-            setMessageHeader(uiRfidPort, uiBufWrIdx); //if the sensor address was changed, update the header
-
-            /****
-            * Put the new data in buffer
-            */
-            SendPacketSensor[uiBufWrIdx].data[uiLnSendCheckSumIdx] = uiStartChkSen; //start with header check summ
-            SendPacketSensor[uiBufWrIdx].data[uiLnSendMsbIdx] = 0; //clear the byte for the ms bits
-            for (uint8_t i = 0, j = 5; i < UID_LEN; i++, j++) {
-              if (mfrc522[uiRfidPort].uid.size > i) {
-                SendPacketSensor[uiBufWrIdx].data[j] = mfrc522[uiRfidPort].uid.uidByte[i] & 0x7F; //loconet bytes have only 7 bits;
-                // MSbit is transmited in the SendPacket.data[10]
-                if (mfrc522[uiRfidPort].uid.uidByte[i] & 0x80) {
-                  SendPacketSensor[uiBufWrIdx].data[uiLnSendMsbIdx] |= 1 << i;
-                }
-                SendPacketSensor[uiBufWrIdx].data[uiLnSendCheckSumIdx] ^= SendPacketSensor[uiBufWrIdx].data[j]; //calculate the checksumm
-              } else { //if (mfrc522[port].uid.
-                SendPacketSensor[uiBufWrIdx].data[j] = 0;
-              }
-            } //for(i=0
-
-            SendPacketSensor[uiBufWrIdx].data[uiLnSendCheckSumIdx] ^= SendPacketSensor[uiBufWrIdx].data[uiLnSendMsbIdx]; //calculate the checksumm
+            buildLnMessage(mfrc522[uiRfidPort],uiRfidPort, uiBufWrIdx); 
 
             if (uiBufWrIdx < LN_BUFF_LEN) {
               uiBufWrIdx++;

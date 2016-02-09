@@ -59,7 +59,7 @@
 
 #define NR_OF_RFID_PORTS     2   /* Maximal number of RFID readers*/ 
 #define TOTAL_NR_OF_PORTS    8   /* Maximal number of I/Os */
-#define USE_INTERRUPTS       0   /* use interrupts or polling to detect new cards*/
+#define USE_INTERRUPTS       1   /* use interrupts or polling to detect new cards*/
 
 #define MANUF_ID        13          /* DIY DCC*/
 #define BOARD_TYPE      5           /* something for sv.init*/
@@ -114,6 +114,8 @@ extern void boardSetup(void);
 extern void calcSenAddr(uint8_t);
 extern void printSensorData(uint8_t);
 extern void lnDecodeMessage(lnMsg *LnPacket);
+extern void buildLnMessage(MFRC522, uint8_t , uint8_t );
+
 
 #if USE_INTERRUPTS
   extern void activateRec(MFRC522 mfrc522);
