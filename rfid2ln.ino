@@ -169,10 +169,9 @@ void setup() {
     } //if(readReg)
   } //for(uint8_t i = 0
   
-  Serial.print(F("Nr. of active RFID readers: "));
-  Serial.println(uiActReaders);
-
   if (bSerialOk) {
+    Serial.print(F("Nr. of active RFID readers: "));
+    Serial.println(uiActReaders);
     Serial.println(F("************************************************"));
   }
 }
