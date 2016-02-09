@@ -140,10 +140,21 @@ void setup() {
 #endif
   
   for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
+    if (bSerialOk) {
+      Serial.print(F("Before init; reader = "));
+      Serial.print(i+1);
+    }
     mfrc522[i].PCD_Init(mfrc522Cs[i], RST_PIN);
     
     /* detect the active readers. If version read != 0 => reader active*/
+    if (bSerialOk) {
+      Serial.print(F("Before version read "));
+    }
     byte readReg = mfrc522[i].PCD_ReadRegister(mfrc522[i].VersionReg);
+    if (bSerialOk) {
+      Serial.print(F("After version read; version = "));
+      Serial.print(readReg);
+    }
     if(readReg){
       uiActReaders++;
       calcSenAddr(i);
@@ -169,10 +180,10 @@ void setup() {
     } //if(readReg)
   } //for(uint8_t i = 0
   
-  Serial.print(F("Nr. of active RFID readers: "));
-  Serial.println(uiActReaders);
-
   if (bSerialOk) {
+    Serial.print(F("Nr. of active RFID readers: "));
+    Serial.println(uiActReaders);
+
     Serial.println(F("************************************************"));
   }
 }
