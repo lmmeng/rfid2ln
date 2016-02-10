@@ -90,6 +90,7 @@ uint8_t uiRfidPort = 0;
 uint8_t uiNrEmptyReads[NR_OF_RFID_PORTS] = {3}; //send LN message if at supplying the tag is on reader.
 
 uint8_t uiActReaders = 0;
+uint8_t uiFirstReaderIdx = 0;
 
 
 #if USE_INTERRUPTS
@@ -156,6 +157,11 @@ void setup() {
       Serial.println(readReg, HEX);
     }
     if(readReg){
+
+      if(0 == uiActReaders){ //save the number of the first active reader
+         uiFirstReaderIdx = i;
+         uiRfidPort = uiFirstReaderIdx; //initialize the starting reader counter
+      }
       uiActReaders++;
       calcSenAddr(i);
 
@@ -290,8 +296,8 @@ void loop() {
       }   // else if ( mfrc522.PICC_IsNewCardPresent()  
 
       uiRfidPort++;
-      if (uiRfidPort == uiActReaders) {
-        uiRfidPort = 0;
+      if (uiRfidPort == uiActReaders + uiFirstReaderIdx) {
+        uiRfidPort = uiFirstReaderIdx;
       }
     } //if(uiBufCnt < LN_BUFF_LEN){
   } //if(NR_OF_RFID_PORTS
