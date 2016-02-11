@@ -67,7 +67,7 @@ uint8_t uiLnSendLength = 14; //14 bytes
 uint8_t uiLnSendMsbIdx = 12;
 uint8_t uiStartChkSen;
 
-uint8_t oldUid[NR_OF_RFID_PORTS][UID_LEN] = {0}; 
+uint8_t oldUid[NR_OF_RFID_PORTS][UID_LEN] = {0, 0}; 
 
 boolean bSerialOk = false;
 
@@ -87,14 +87,14 @@ boolean bUpdateOutputs = false;
 
 uint8_t uiRfidPort = 0;
 
-uint8_t uiNrEmptyReads[NR_OF_RFID_PORTS] = {3}; //send LN message if at supplying the tag is on reader.
+uint8_t uiNrEmptyReads[NR_OF_RFID_PORTS] = {3, 3}; //send LN message if at supplying the tag is on reader.
 
 uint8_t uiActReaders = 0;
 uint8_t uiFirstReaderIdx = 0;
 
 
 #if USE_INTERRUPTS
-volatile boolean bNewInt[NR_OF_RFID_PORTS] = {false};
+volatile boolean bNewInt[NR_OF_RFID_PORTS] = {false, false};
 unsigned char regVal = 0x7F;
 void activateRec(MFRC522 mfrc522);
 void clearInt(MFRC522 mfrc522);
@@ -134,30 +134,38 @@ void setup() {
   boardSetup();
 
   SPI.begin();        // Init SPI bus
-  //  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0)); //spi speed of MFRC522 - 10 MHz
+//  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0)); //spi speed of MFRC522 - 10 MHz
 
 #if USE_INTERRUPT
   regVal = 0xA0; //rx irq
 #endif
-  
-  for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
-    if (bSerialOk) {
-      Serial.print(F("Before init; reader = "));
-      Serial.println(i+1);
-    }
-    mfrc522[i].PCD_Init(mfrc522Cs[i], RST_PIN);
-    
-    /* detect the active readers. If version read != 0 => reader active*/
-    if (bSerialOk) {
-      Serial.println(F("Before version read "));
-    }
-    byte readReg = mfrc522[i].PCD_ReadRegister(mfrc522[i].VersionReg);
-    if (bSerialOk) {
-      Serial.print(F("After version read; version = "));
-      Serial.println(readReg, HEX);
-    }
-    if(readReg){
 
+  /*
+   * only initialisation; all reader should be initialised before
+   * any communication
+   */                                                  
+  for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) { 
+    mfrc522[i].PCD_Init(mfrc522Cs[i], RST_PIN);
+  }
+    
+  /* detect the active readers. If version read != 0xFF => reader active*/
+  for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
+    byte readReg = mfrc522[i].PCD_ReadRegister(mfrc522[i].VersionReg);
+    
+    if (bSerialOk) {
+      Serial.print(F("Reader "));
+      Serial.print(i+1);
+    }
+
+    if((readReg == 0x00) || (readReg == 0xFF)){ //missing reader
+      if (bSerialOk) {
+        Serial.println(F(" absent"));
+      }
+    } else {
+      if (bSerialOk) {
+        Serial.print(F(" present; version = "));
+        Serial.println(readReg, HEX);
+      }
       if(0 == uiActReaders){ //save the number of the first active reader
          uiFirstReaderIdx = i;
          uiRfidPort = uiFirstReaderIdx; //initialize the starting reader counter
