@@ -59,7 +59,7 @@ uint8_t ucBoardAddrLo = 88;  //board address low; default 88
 
 uint8_t ucAddrHiSen[NR_OF_RFID_PORTS];    //sensor address high
 uint8_t ucAddrLoSen[NR_OF_RFID_PORTS];    //sensor address low
-uint8_t ucSenType[NR_OF_RFID_PORTS] = {0x0F}; //input
+uint8_t ucSenType[NR_OF_RFID_PORTS] = {0x0F, 0x0F}; //input
 uint16_t uiAddrSenFull[NR_OF_RFID_PORTS];
 
 uint8_t uiLnSendCheckSumIdx = 13;
@@ -67,7 +67,7 @@ uint8_t uiLnSendLength = 14; //14 bytes
 uint8_t uiLnSendMsbIdx = 12;
 uint8_t uiStartChkSen;
 
-uint8_t oldUid[NR_OF_RFID_PORTS][UID_LEN] = {0}; 
+uint8_t oldUid[NR_OF_RFID_PORTS][UID_LEN] = {0, 0}; 
 
 boolean bSerialOk = false;
 
@@ -87,13 +87,13 @@ boolean bUpdateOutputs = false;
 
 uint8_t uiRfidPort = 0;
 
-uint8_t uiNrEmptyReads[NR_OF_RFID_PORTS] = {3}; //send LN message if at supplying the tag is on reader.
+uint8_t uiNrEmptyReads[NR_OF_RFID_PORTS] = {3, 3}; //send LN message if at supplying the tag is on reader.
 
 uint8_t uiActReaders = 0;
-
+uint8_t uiFirstReaderIdx = 0;
 
 #if USE_INTERRUPTS
-volatile boolean bNewInt[NR_OF_RFID_PORTS] = {false};
+volatile boolean bNewInt[NR_OF_RFID_PORTS] = {false, false};
 unsigned char regVal = 0x7F;
 void activateRec(MFRC522 mfrc522);
 void clearInt(MFRC522 mfrc522);
@@ -139,12 +139,36 @@ void setup() {
   regVal = 0xA0; //rx irq
 #endif
   
-  for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
+  /*
+   * only initialisation; all reader should be initialised before
+   * any communication
+   */                                                  
+  for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) { 
     mfrc522[i].PCD_Init(mfrc522Cs[i], RST_PIN);
+  }
     
-    /* detect the active readers. If version read != 0 => reader active*/
+  /* detect the active readers. If version read != 0xFF => reader active*/
+  for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
     byte readReg = mfrc522[i].PCD_ReadRegister(mfrc522[i].VersionReg);
-    if(readReg){
+    
+    if (bSerialOk) {
+      Serial.print(F("Reader "));
+      Serial.print(i+1);
+    }
+
+    if((readReg == 0x00) || (readReg == 0xFF)){ //missing reader
+      if (bSerialOk) {
+        Serial.println(F(" absent"));
+      }
+    } else {
+      if (bSerialOk) {
+        Serial.print(F(" present; version = "));
+        Serial.println(readReg, HEX);
+      }
+      if(0 == uiActReaders){ //save the number of the first active reader
+         uiFirstReaderIdx = i;
+         uiRfidPort = uiFirstReaderIdx; //initialize the starting reader counter
+      }
       uiActReaders++;
       calcSenAddr(i);
 
@@ -230,9 +254,9 @@ void loop() {
         boolean rc = mfrc522[uiRfidPort].PICC_ReadCardSerial();
         if (!rc) {
           if (/*bSendReset[uiRfidPort] &&*/ (uiNrEmptyReads[uiRfidPort] == MAX_EMPTY_READS)) {
-            if (bSerialOk) {
-              Serial.println(F("Send reset: "));
-            }
+//            if (bSerialOk) {
+//              Serial.println(F("Send reset: "));
+//            }
             uint16_t uiAddr =  (uiAddrSenFull[uiRfidPort] - 1) / 2;
             SendPacketSensor[uiBufWrIdx].data[0] = 0xB2;
             SendPacketSensor[uiBufWrIdx].data[1] = uiAddr & 0x7F; //ucAddrLoSen;
@@ -258,8 +282,8 @@ void loop() {
       }   // else if ( mfrc522.PICC_IsNewCardPresent()  
 
       uiRfidPort++;
-      if (uiRfidPort == uiActReaders) {
-        uiRfidPort = 0;
+      if (uiRfidPort == uiActReaders + uiFirstReaderIdx) {
+        uiRfidPort = uiFirstReaderIdx;
       }
     } //if(uiBufCnt < LN_BUFF_LEN){
   } //if(NR_OF_RFID_PORTS
@@ -268,6 +292,7 @@ void loop() {
    * send the tag data in the loconet bus
    */
   if (uiBufCnt > 0) {
+
 #ifdef _SER_DEBUG
     if (bSerialOk) {
       Serial.print(F("LN send mess:"));
