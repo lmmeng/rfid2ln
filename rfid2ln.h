@@ -114,21 +114,22 @@ extern void boardSetup(void);
 extern void calcSenAddr(uint8_t);
 extern void printSensorData(uint8_t);
 extern void lnDecodeMessage(lnMsg *LnPacket);
-extern void buildLnMessage(MFRC522, uint8_t , uint8_t );
 extern void varInit(void);
 
+#if NR_OF_RFID_PORTS > 0
+  extern void buildLnMessage(MFRC522, uint8_t , uint8_t );
+  #if USE_INTERRUPTS
+    extern void activateRec(MFRC522 mfrc522);
+    extern void clearInt(MFRC522 mfrc522);
+    extern void readCard1(void);
+    extern void readCard2(void);
+    extern volatile boolean bNewInt[];
+    extern unsigned char regVal;
 
-#if USE_INTERRUPTS
-  extern void activateRec(MFRC522 mfrc522);
-  extern void clearInt(MFRC522 mfrc522);
-  extern void readCard1(void);
-  extern void readCard2(void);
-  extern volatile boolean bNewInt[];
-  extern unsigned char regVal;
-
-  typedef void (*readCardIntArray) (void);
-  extern readCardIntArray readCardInt[];
-#endif
+    typedef void (*readCardIntArray) (void);
+    extern readCardIntArray readCardInt[];
+  #endif
+#endif //#if NR_OF_RFID_PORTS > 0
 
 extern uint8_t boardVer[];
 extern char verLen;
@@ -153,11 +154,13 @@ extern uint8_t uiLnSendLength; //14 bytes
 extern uint8_t uiLnSendMsbIdx;
 extern uint8_t uiStartChkSen;
 
-extern uint8_t oldUid[][UID_LEN];
-
 extern boolean bSerialOk;
 
-extern uint8_t uiNrEmptyReads[]; 
+
+#if NR_OF_RFID_PORTS > 0
+  extern uint8_t uiNrEmptyReads[]; 
+  extern uint8_t oldUid[][UID_LEN];
+#endif // #if NR_OF_RFID_PORTS > 0
 
 
 typedef struct {

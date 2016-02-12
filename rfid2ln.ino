@@ -42,8 +42,9 @@
 //#define _SER_DEBUG
 #define EE_ERASE   0
 
-MFRC522 mfrc522[NR_OF_RFID_PORTS];
-#if NR_OF_RFID_PORTS == 1
+#if NR_OF_RFID_PORTS == 0
+uint8_t boardVer[] = "No RFID";
+#elif NR_OF_RFID_PORTS == 1
 uint8_t boardVer[] = "RFID2LN Vxx SINGLE";
 #elif NR_OF_RFID_PORTS == 2
 uint8_t boardVer[] = "RFID2LN Vxx MULTI";
@@ -61,49 +62,48 @@ boolean     deferredProcessingNeeded = false;
 uint8_t ucBoardAddrHi = 1;  //board address high; always 1
 uint8_t ucBoardAddrLo = 88;  //board address low; default 88
 
-uint8_t ucAddrHiSen[NR_OF_RFID_PORTS];    //sensor address high
-uint8_t ucAddrLoSen[NR_OF_RFID_PORTS];    //sensor address low
-uint8_t ucSenType[NR_OF_RFID_PORTS]; //input
-uint16_t uiAddrSenFull[NR_OF_RFID_PORTS];
+uint8_t ucAddrHiSen[TOTAL_NR_OF_PORTS];    //sensor address high
+uint8_t ucAddrLoSen[TOTAL_NR_OF_PORTS];    //sensor address low
+uint8_t ucSenType[TOTAL_NR_OF_PORTS]; //input
+uint16_t uiAddrSenFull[TOTAL_NR_OF_PORTS];
 
 uint8_t uiLnSendCheckSumIdx = 13;
 uint8_t uiLnSendLength = 14; //14 bytes
 uint8_t uiLnSendMsbIdx = 12;
 uint8_t uiStartChkSen;
 
-uint8_t oldUid[NR_OF_RFID_PORTS][UID_LEN]; 
-
 boolean bSerialOk = false;
-
-byte mfrc522Cs[] = {SS_1_PIN, SS_2_PIN};
-
-#if USE_INTERRUPT
-  byte mfrc522Irq[] = {IRQ_1_PIN, IRQ_2_PIN};
-#endif
-
-uint8_t uiBufWrIdx = 0;
-uint8_t uiBufRdIdx = 0;
-uint8_t uiBufCnt = 0;
 
 __outType outputs[TOTAL_NR_OF_PORTS - NR_OF_RFID_PORTS]; /*maximum number of outputs*/
 uint8_t outsNr = 0;
 boolean bUpdateOutputs = false;
 
-uint8_t uiRfidPort = 0;
+#if NR_OF_RFID_PORTS > 0
+  MFRC522 mfrc522[NR_OF_RFID_PORTS];
+  byte mfrc522Cs[] = {SS_1_PIN, SS_2_PIN};
+  uint8_t oldUid[NR_OF_RFID_PORTS][UID_LEN]; 
 
-uint8_t uiNrEmptyReads[NR_OF_RFID_PORTS]; 
+  uint8_t uiRfidPort = 0;
+
+  uint8_t uiNrEmptyReads[NR_OF_RFID_PORTS]; 
+
+  uint8_t uiFirstReaderIdx = 0;
+
+  #if USE_INTERRUPTS
+  byte mfrc522Irq[] = {IRQ_1_PIN, IRQ_2_PIN};
+  volatile boolean bNewInt[NR_OF_RFID_PORTS];
+  unsigned char regVal = 0x7F;
+  void activateRec(MFRC522 mfrc522);
+  void clearInt(MFRC522 mfrc522);
+
+  readCardIntArray readCardInt[] = {readCard1, readCard2};
+  #endif
+#endif //#if NR_OF_RFID_PORTS > 0
 
 uint8_t uiActReaders = 0;
-uint8_t uiFirstReaderIdx = 0;
-
-#if USE_INTERRUPTS
-volatile boolean bNewInt[NR_OF_RFID_PORTS];
-unsigned char regVal = 0x7F;
-void activateRec(MFRC522 mfrc522);
-void clearInt(MFRC522 mfrc522);
-
-readCardIntArray readCardInt[] = {readCard1, readCard2};
-#endif
+uint8_t uiBufWrIdx = 0;
+uint8_t uiBufRdIdx = 0;
+uint8_t uiBufCnt = 0;
 
 /**
  * Initialize.
@@ -112,8 +112,6 @@ void setup() {
   uint32_t uiStartTimer;
   uint16_t uiElapsedDelay;
   uint16_t uiSerialOKDelay = 5000;
-
-  varInit();
 
   Serial.begin(115200); // Initialize serial communications with the PC
   uiStartTimer = millis();
@@ -137,6 +135,9 @@ void setup() {
 #endif
 
   boardSetup();
+
+#if NR_OF_RFID_PORTS > 0
+  varInit();
 
   SPI.begin();        // Init SPI bus
   //  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0)); //spi speed of MFRC522 - 10 MHz
@@ -197,6 +198,7 @@ void setup() {
       }
     } //if(readReg)
   } //for(uint8_t i = 0
+#endif //#if NR_OF_RFID_PORTS > 0
   
   if (bSerialOk) {
     Serial.print(F("Nr. of active RFID readers: "));
@@ -214,7 +216,7 @@ void loop() {
   /*************
    * Read the TAGs
    */
-  //  for (uint8_t port = 0; port < NR_OF_RFID_PORTS; port++) {
+#if NR_OF_RFID_PORTS > 0
   if (uiActReaders > 0) {
     if (uiBufCnt < LN_BUFF_LEN) { //if buffer not full
 #if USE_INTERRUPT
@@ -291,8 +293,8 @@ void loop() {
         uiRfidPort = uiFirstReaderIdx;
       }
     } //if(uiBufCnt < LN_BUFF_LEN){
-  } //if(NR_OF_RFID_PORTS
-
+  } //if(uiActReaders > 0)
+#endif //#if NR_OF_RFID_PORTS > 0
   /******
    * send the tag data in the loconet bus
    */

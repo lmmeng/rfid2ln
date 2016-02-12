@@ -5,6 +5,8 @@
 #include <EEPROM.h>
 #include "rfid2ln.h"
 
+#if NR_OF_RFID_PORTS > 0
+
 /**
  * Helper routine to dump a byte array as hex values to Serial.
  */
@@ -57,6 +59,7 @@ void setMessageHeader(uint8_t port, uint8_t index){
       SendPacketSensor[index].data[uiLnSendCheckSumIdx] ^= SendPacketSensor[index].data[k];
     }
 }
+#endif //#if NR_OF_RFID_PORTS > 0
 
 uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
     
@@ -314,6 +317,8 @@ void lnDecodeMessage(lnMsg *LnPacket)
     } //if(msgLen == 0x10)
 }
 
+#if NR_OF_RFID_PORTS > 0
+
 #if USE_INTERRUPTS
 /*
  * MFRC522 interrupt serving routines
@@ -378,4 +383,6 @@ void varInit(void){
 #endif
    }  
 }
+
+#endif //#if NR_OF_RFID_PORTS > 0
 
