@@ -114,7 +114,9 @@ extern void boardSetup(void);
 extern void calcSenAddr(uint8_t);
 extern void printSensorData(uint8_t);
 extern void lnDecodeMessage(lnMsg *LnPacket);
+extern void buildLnMessage(MFRC522, uint8_t , uint8_t );
 extern void varInit(void);
+
 
 #if USE_INTERRUPTS
   extern void activateRec(MFRC522 mfrc522);

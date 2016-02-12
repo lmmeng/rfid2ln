@@ -92,7 +92,6 @@ uint8_t uiNrEmptyReads[NR_OF_RFID_PORTS];
 uint8_t uiActReaders = 0;
 uint8_t uiFirstReaderIdx = 0;
 
-
 #if USE_INTERRUPTS
 volatile boolean bNewInt[NR_OF_RFID_PORTS];
 unsigned char regVal = 0x7F;
@@ -136,7 +135,7 @@ void setup() {
   boardSetup();
 
   SPI.begin();        // Init SPI bus
-//  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0)); //spi speed of MFRC522 - 10 MHz
+  //  SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0)); //spi speed of MFRC522 - 10 MHz
 
 #if USE_INTERRUPT
   regVal = 0xA0; //rx irq
@@ -198,7 +197,6 @@ void setup() {
   if (bSerialOk) {
     Serial.print(F("Nr. of active RFID readers: "));
     Serial.println(uiActReaders);
-
     Serial.println(F("************************************************"));
   }
 }
@@ -232,27 +230,7 @@ void loop() {
               Serial.println();
             }
 
-            setMessageHeader(uiRfidPort, uiBufWrIdx); //if the sensor address was changed, update the header
-
-            /****
-            * Put the new data in buffer
-            */
-            SendPacketSensor[uiBufWrIdx].data[uiLnSendCheckSumIdx] = uiStartChkSen; //start with header check summ
-            SendPacketSensor[uiBufWrIdx].data[uiLnSendMsbIdx] = 0; //clear the byte for the ms bits
-            for (uint8_t i = 0, j = 5; i < UID_LEN; i++, j++) {
-              if (mfrc522[uiRfidPort].uid.size > i) {
-                SendPacketSensor[uiBufWrIdx].data[j] = mfrc522[uiRfidPort].uid.uidByte[i] & 0x7F; //loconet bytes have only 7 bits;
-                // MSbit is transmited in the SendPacket.data[10]
-                if (mfrc522[uiRfidPort].uid.uidByte[i] & 0x80) {
-                  SendPacketSensor[uiBufWrIdx].data[uiLnSendMsbIdx] |= 1 << i;
-                }
-                SendPacketSensor[uiBufWrIdx].data[uiLnSendCheckSumIdx] ^= SendPacketSensor[uiBufWrIdx].data[j]; //calculate the checksumm
-              } else { //if (mfrc522[port].uid.
-                SendPacketSensor[uiBufWrIdx].data[j] = 0;
-              }
-            } //for(i=0
-
-            SendPacketSensor[uiBufWrIdx].data[uiLnSendCheckSumIdx] ^= SendPacketSensor[uiBufWrIdx].data[uiLnSendMsbIdx]; //calculate the checksumm
+            buildLnMessage(mfrc522[uiRfidPort],uiRfidPort, uiBufWrIdx); 
 
             if (uiBufWrIdx < LN_BUFF_LEN) {
               uiBufWrIdx++;
@@ -277,9 +255,9 @@ void loop() {
         boolean rc = mfrc522[uiRfidPort].PICC_ReadCardSerial();
         if (!rc) {
           if (/*bSendReset[uiRfidPort] &&*/ (uiNrEmptyReads[uiRfidPort] == MAX_EMPTY_READS)) {
-            if (bSerialOk) {
-              Serial.println(F("Send reset: "));
-            }
+//            if (bSerialOk) {
+//              Serial.println(F("Send reset: "));
+//            }
             uint16_t uiAddr =  (uiAddrSenFull[uiRfidPort] - 1) / 2;
             SendPacketSensor[uiBufWrIdx].data[0] = 0xB2;
             SendPacketSensor[uiBufWrIdx].data[1] = uiAddr & 0x7F; //ucAddrLoSen;
@@ -315,6 +293,7 @@ void loop() {
    * send the tag data in the loconet bus
    */
   if (uiBufCnt > 0) {
+
 #ifdef _SER_DEBUG
     if (bSerialOk) {
       Serial.print(F("LN send mess:"));
