@@ -59,7 +59,7 @@ uint8_t ucBoardAddrLo = 88;  //board address low; default 88
 
 uint8_t ucAddrHiSen[NR_OF_RFID_PORTS];    //sensor address high
 uint8_t ucAddrLoSen[NR_OF_RFID_PORTS];    //sensor address low
-uint8_t ucSenType[NR_OF_RFID_PORTS] = {0x0F, 0x0F}; //input
+uint8_t ucSenType[NR_OF_RFID_PORTS]; //input
 uint16_t uiAddrSenFull[NR_OF_RFID_PORTS];
 
 uint8_t uiLnSendCheckSumIdx = 13;
@@ -67,7 +67,7 @@ uint8_t uiLnSendLength = 14; //14 bytes
 uint8_t uiLnSendMsbIdx = 12;
 uint8_t uiStartChkSen;
 
-uint8_t oldUid[NR_OF_RFID_PORTS][UID_LEN] = {0, 0}; 
+uint8_t oldUid[NR_OF_RFID_PORTS][UID_LEN]; 
 
 boolean bSerialOk = false;
 
@@ -87,13 +87,13 @@ boolean bUpdateOutputs = false;
 
 uint8_t uiRfidPort = 0;
 
-uint8_t uiNrEmptyReads[NR_OF_RFID_PORTS] = {3, 3}; //send LN message if at supplying the tag is on reader.
+uint8_t uiNrEmptyReads[NR_OF_RFID_PORTS]; 
 
 uint8_t uiActReaders = 0;
 uint8_t uiFirstReaderIdx = 0;
 
 #if USE_INTERRUPTS
-volatile boolean bNewInt[NR_OF_RFID_PORTS] = {false, false};
+volatile boolean bNewInt[NR_OF_RFID_PORTS];
 unsigned char regVal = 0x7F;
 void activateRec(MFRC522 mfrc522);
 void clearInt(MFRC522 mfrc522);
@@ -108,6 +108,8 @@ void setup() {
   uint32_t uiStartTimer;
   uint16_t uiElapsedDelay;
   uint16_t uiSerialOKDelay = 5000;
+
+  varInit();
 
   Serial.begin(115200); // Initialize serial communications with the PC
   uiStartTimer = millis();
@@ -138,7 +140,7 @@ void setup() {
 #if USE_INTERRUPT
   regVal = 0xA0; //rx irq
 #endif
-  
+
   /*
    * only initialisation; all reader should be initialised before
    * any communication
@@ -171,7 +173,6 @@ void setup() {
       }
       uiActReaders++;
       calcSenAddr(i);
-
 
 #if USE_INTERRUPT
       pinMode(mfrc522Irq[i], INPUT_PULLUP);

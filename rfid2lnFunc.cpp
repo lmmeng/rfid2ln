@@ -206,7 +206,7 @@ void boardSetup(void){
     ucBoardAddrHi = sv.readSVStorage(SV_ADDR_NODE_ID_H); //board address high
     ucBoardAddrLo = sv.readSVStorage(SV_ADDR_NODE_ID_L); //board address low
 
-    if(bVersionOK == false){   //not the right content in eeprom
+    if(!bVersionOK){   //not the right content in eeprom
        if(bSerialOk) { //serial interface ok
           Serial.println(F("First run. Write the default values in EEPROM"));
        }      
@@ -232,7 +232,7 @@ void boardSetup(void){
           sv.writeSVStorage(iSenAddr+1, 0);
           sv.writeSVStorage(iSenAddr, ucSenType[i]);
        }
-    } else {
+    } else { //right content in the memory
        if(bSerialOk) { //serial interface ok
           for(uint8_t i = 0; i<verLen; i++){
              Serial.print((char)boardVer[i]);
@@ -365,3 +365,17 @@ void buildLnMessage(MFRC522 mfrc522, uint8_t uiRfidPort, uint8_t uiBufWrIdx){
 
    SendPacketSensor[uiBufWrIdx].data[uiLnSendCheckSumIdx] ^= SendPacketSensor[uiBufWrIdx].data[uiLnSendMsbIdx]; //calculate the checksumm
 }
+
+
+void varInit(void){
+   for(uint8_t i = 0; i < NR_OF_RFID_PORTS; i++){
+     for(uint8_t j = 0; j < UID_LEN; j++){
+       oldUid[i][j] = 0;
+     }
+     uiNrEmptyReads[i] = 3;
+#if USE_INTERRUPTS
+     bNewInt[i] = false;
+#endif
+   }  
+}
+

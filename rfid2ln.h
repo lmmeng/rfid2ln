@@ -57,9 +57,9 @@
   #define SS_2_PIN        3           /* Configurable, see typical pin layout above*/   
 #endif 
 
-#define NR_OF_RFID_PORTS     2   /* Maximal number of RFID readers*/ 
+#define NR_OF_RFID_PORTS     2   /* Maximal number of RFID readers; the real number is detected at runtime*/ 
 #define TOTAL_NR_OF_PORTS    8   /* Maximal number of I/Os */
-#define USE_INTERRUPTS       1   /* use interrupts or polling to detect new cards*/
+#define USE_INTERRUPTS       0   /* use interrupts or polling to detect new cards*/
 
 #define MANUF_ID        13          /* DIY DCC*/
 #define BOARD_TYPE      5           /* something for sv.init*/
@@ -115,6 +115,7 @@ extern void calcSenAddr(uint8_t);
 extern void printSensorData(uint8_t);
 extern void lnDecodeMessage(lnMsg *LnPacket);
 extern void buildLnMessage(MFRC522, uint8_t , uint8_t );
+extern void varInit(void);
 
 
 #if USE_INTERRUPTS
@@ -142,19 +143,22 @@ extern boolean     deferredProcessingNeeded;
 extern uint8_t ucBoardAddrHi;  //board address high; always 1
 extern uint8_t ucBoardAddrLo;  //board address low; default 88
 
-extern uint8_t ucAddrHiSen[NR_OF_RFID_PORTS];    //sensor address high
-extern uint8_t ucAddrLoSen[NR_OF_RFID_PORTS];    //sensor address low
-extern uint8_t ucSenType[NR_OF_RFID_PORTS]; //input
-extern uint16_t uiAddrSenFull[NR_OF_RFID_PORTS];
+extern uint8_t ucAddrHiSen[];    //sensor address high
+extern uint8_t ucAddrLoSen[];    //sensor address low
+extern uint8_t ucSenType[]; //input
+extern uint16_t uiAddrSenFull[];
 
 extern uint8_t uiLnSendCheckSumIdx;
 extern uint8_t uiLnSendLength; //14 bytes
 extern uint8_t uiLnSendMsbIdx;
 extern uint8_t uiStartChkSen;
 
-extern uint8_t oldUid[NR_OF_RFID_PORTS][UID_LEN];
+extern uint8_t oldUid[][UID_LEN];
 
 extern boolean bSerialOk;
+
+extern uint8_t uiNrEmptyReads[]; 
+
 
 typedef struct {
   uint16_t addr;
