@@ -43,7 +43,11 @@
 #define EE_ERASE   0
 
 MFRC522 mfrc522[NR_OF_RFID_PORTS];
-uint8_t boardVer[] = "RFID2LN V1";
+#if NR_OF_RFID_PORTS == 1
+uint8_t boardVer[] = "RFID2LN Vxx SINGLE";
+#elif NR_OF_RFID_PORTS == 2
+uint8_t boardVer[] = "RFID2LN Vxx MULTI";
+#endif
 char verLen = sizeof(boardVer);
 
 LocoNetSystemVariableClass sv;
