@@ -238,7 +238,7 @@ void boardSetup(void){
              Serial.print((char)boardVer[i]);
           }
           Serial.println();
-          Serial.print(F("Total nr. of RFID readers: "));
+          Serial.print(F("Maximum nr. of RFID readers: "));
           Serial.println(NR_OF_RFID_PORTS);
 #if USE_INTERRUPTS          
           Serial.println(F("Using interrupts"));
