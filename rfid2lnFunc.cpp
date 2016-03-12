@@ -250,8 +250,8 @@ void boardSetup(void){
           Serial.print(ucBoardAddrHi);
           Serial.print(F(" - "));
           Serial.println(ucBoardAddrLo);
-       }
-    }
+       } //if(bSerialOk)
+    } //else
 }
 
 /**

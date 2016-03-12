@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 /**
  * ----------------------------------------------------------------------------
  * This is a combination between the MFRC522 library (https://github.com/miguelbalboa/rfid )
