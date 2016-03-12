@@ -123,9 +123,14 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
                 sv.writeSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex, ucPeerRSvValue); //save the new value
                 if ((ucPeerRSvIndex % 3) == 0) { // port type. If output, increase the total number of outputs
                    if(ucPeerRSvValue == 0x10){
-                      bUpdateOutputs = true; //activate the outputs structure update 
-                      outputs[outsNr].idx = ucPeerRSvIndex;
+//                      bUpdateOutputs = true; //activate the outputs structure update 
+//                      outputs[outsNr].idx = ucPeerRSvIndex;
                       outsNr++;
+                   }
+                   if(ucPeerRSvIndex >= 100){ //servo configurations
+                      uint8_t outnr = (ucPeerRSvIndex - FIRST_SERVO_REG) / 3; 
+                      uint8_t regnr = (ucPeerRSvIndex - FIRST_SERVO_REG) % 3;
+                      outputs[outnr].servo.servoBytes[regnr] = ucPeerRSvValue;
                    }
                 }
                 cOutBuf->data[0x0B] = ucBoardAddrHi; 

@@ -102,6 +102,8 @@
 #define UID_LEN          7
 #define LN_BUFF_LEN     10
 
+#define FIRST_SERVO_REG 100
+
 #define MAX_EMPTY_READS  2
 
 extern void dump_byte_array(byte *buffer, byte bufferSize);
@@ -166,7 +168,14 @@ extern boolean bSerialOk;
 typedef struct {
   uint16_t addr;
   uint8_t  state;
-  uint8_t  idx;
+  union {
+    uint8_t servoBytes[3];
+    struct{
+      uint8_t  pos1;
+      uint8_t  pos2;
+      uint8_t  v;
+    } servoStruct;
+  } servo;
 } __outType;
 
 extern __outType outputs[];
