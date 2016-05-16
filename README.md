@@ -25,7 +25,7 @@ The RFID data is sent over Loconet using a variable length message type (0xEx), 
 0xE4 0x0E 0x41 <ADDR_H> <ADDR_L> <UID0_LSB> <UID1_LSB> <UID2_LSB> <UID3_LSB> <UID4_LSB> <UID5_LSB> <UID6_LSB> <UID_MSBS> <CHK_SUMM>
 `
 
-where the UIDX_LSB contains the bite b6..b0 of the corresponding UIDx, and the UID_MSBS contains the MSBits of 
+where the UIDX_LSB contains the bits b6..b0 of the corresponding UIDx, and the UID_MSBS contains the MSBits of 
 UID0..UID6 as b0..b6. 
 The ADDR_H & ADDR_L are the sensor address bytes (range 1..4095).  
 
