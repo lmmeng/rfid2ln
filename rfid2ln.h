@@ -32,7 +32,12 @@
 
 #include <LocoNet.h>
 
-//#define UNO_LM /*my special UNO connections, to can use the same adaptor as for leonardo*/
+#define UNO_LM /*my special UNO connections, to can use the same adaptor as for leonardo*/
+
+#define USE_INTERRUPTS       0   /* use interrupts or polling to detect new cards*/
+#define NR_OF_RFID_PORTS     2   /* Maximal number of RFID readers; the real number is detected at runtime*/ 
+#define TOTAL_NR_OF_PORTS    4   /* Maximal number of I/Os */
+
 
 #if ARDUINO >= 10500 //the board naming scheme is supported from Arduino 1.5.0
  #if (defined(ARDUINO_AVR_UNO) && !defined(UNO_LM)) || defined(ARDUINO_AVR_NANO)
@@ -45,7 +50,7 @@
   #define RST_PIN         9           /* Configurable, see typical pin layout above*/
   #define SS_1_PIN        5           /* Configurable, see typical pin layout above*/   
   #define SS_2_PIN        7           /* Configurable, see typical pin layout above*/  
-  #if USE_INTERRUPTS          /* can be always active; just to remember me that USE_INTERRUPTS exists*/
+  #if USE_INTERRUPTS                  /* can be always active; just to remember me that USE_INTERRUPTS exists*/
     #define IRQ_1_PIN     2           /* Configurable, see typical pin layout above*/  
     #define IRQ_2_PIN     3           /* Configurable, see typical pin layout above*/  
   #endif
@@ -56,10 +61,6 @@
   #define SS_1_PIN        5           /* Configurable, see typical pin layout above*/   
   #define SS_2_PIN        3           /* Configurable, see typical pin layout above*/   
 #endif 
-
-#define NR_OF_RFID_PORTS     2   /* Maximal number of RFID readers; the real number is detected at runtime*/ 
-#define TOTAL_NR_OF_PORTS    8   /* Maximal number of I/Os */
-#define USE_INTERRUPTS       0   /* use interrupts or polling to detect new cards*/
 
 #define MANUF_ID        13          /* DIY DCC*/
 #define BOARD_TYPE      5           /* something for sv.init*/
@@ -90,6 +91,26 @@
 #define SV_CMDR_CHANGE_ADDR     0x49    /* Transfers a Change Address response.*/
 #define SV_CMDR_RECONFIGURE     0x4F    /* Acknowledgement immediately prior to a device reconfiguration or reset*/
 
+
+    // 4 byte MESSAGE OPCODES
+    // FORMAT = <OPC>,<ARG1>,<ARG2>,<CKSUM>
+    // CODES 0xB8 to 0xBF have responses
+#define OPC_4_BYTES      0xA0
+#define OPC_LOCO_ADR     0xBF
+#define OPC_SW_ACK       0xBD
+#define OPC_SW_STATE     0xBC
+#define OPC_RQ_SL_DATA   0xBB
+#define OPC_MOVE_SLOTS   0xBA
+#define OPC_LINK_SLOTS   0xB9
+#define OPC_UNLINK_SLOTS 0xB8
+
+#define OPC_CONSIST_FUNC 0xB6
+#define OPC_SLOT_STAT1   0xB5
+#define OPC_LONG_ACK     0xB4
+#define OPC_INPUT_REP    0xB2
+#define OPC_SW_REP       0xB1
+#define OPC_SW_REQ       0xB0
+
 //Other LN definitions
 #define SEN_QUERY_LOW_ADDRESS   0x79    /* 1017 & 0x007F - 7 bits low address for the sensors query address 1017*/
 #define SEN_QUERY_HIGH_ADDRESS  0x07    /* (1017 >> 8) & 0x07 - high address bits for the sensors query address 1017*/
@@ -105,11 +126,13 @@
 #define FIRST_SERVO_REG 100
 
 #define MAX_EMPTY_READS  2
+#define IN_PORT  0
+#define OUT_PORT 1
 
 extern void dump_byte_array(byte *buffer, byte bufferSize);
 extern bool compareUid(byte *buffer1, byte *buffer2, byte bufferSize);
 extern void copyUid(byte *buffIn, byte *buffOut, byte bufferSize);
-extern void setMessageHeader(uint8_t port, uint8_t index);
+extern void setVarLenMessageHeader(uint8_t port, uint8_t index);
 extern uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *LnSendMsg);
 extern uint8_t lnCalcCheckSumm(uint8_t *cMessage, uint8_t cMesLen);
 extern void boardSetup(void);
@@ -117,9 +140,10 @@ extern void calcSenAddr(uint8_t);
 extern void printSensorData(uint8_t);
 extern void lnDecodeMessage(lnMsg *LnPacket);
 extern void varInit(void);
+extern void updatePorts(void);
 
 #if NR_OF_RFID_PORTS > 0
-  extern void buildLnMessage(MFRC522, uint8_t , uint8_t );
+  extern void buildLnRfidMessage(MFRC522, uint8_t , uint8_t );
   #if USE_INTERRUPTS
     extern void activateRec(MFRC522 mfrc522);
     extern void clearInt(MFRC522 mfrc522);
@@ -128,8 +152,8 @@ extern void varInit(void);
     extern volatile boolean bNewInt[];
     extern unsigned char regVal;
 
-    typedef void (*readCardIntArray) (void);
-    extern readCardIntArray readCardInt[];
+    typedef void(*readCardIntArray)(void);
+//    extern   readCardIntArray readCardInt[];
   #endif
 #endif //#if NR_OF_RFID_PORTS > 0
 
@@ -164,10 +188,13 @@ extern boolean bSerialOk;
   extern uint8_t oldUid[][UID_LEN];
 #endif // #if NR_OF_RFID_PORTS > 0
 
-
 typedef struct {
-  uint16_t addr;
+  uint8_t pin;
+  uint16_t addrFull;
+  uint8_t addrH;
+  uint8_t addrL;
   uint8_t  state;
+  boolean  type;
   union {
     uint8_t servoBytes[3];
     struct{
@@ -176,11 +203,14 @@ typedef struct {
       uint8_t  v;
     } servoStruct;
   } servo;
-} __outType;
+} __portType;
 
-extern __outType outputs[];
-extern uint8_t outsNr;
-extern boolean bUpdateOutputs;
+extern __portType lnPorts[];
+extern uint8_t lnPortList[];
+
+extern uint8_t uiOutsNr;
+extern uint8_t uiInsNr;
+//extern boolean bUpdateOutputs;
 
 #endif //ifndef RFID2LN_H_
 

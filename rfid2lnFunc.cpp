@@ -46,7 +46,7 @@ void copyUid (byte *buffIn, byte *buffOut, byte bufferSize) {
     }
 }
 
-void setMessageHeader(uint8_t port, uint8_t index){
+void setVarLenMessageHeader(uint8_t port, uint8_t index){
     unsigned char k = 0;
     SendPacketSensor[index].data[0] = 0xE4; //OPC - variable length message 
     SendPacketSensor[index].data[1] = uiLnSendLength; //14 bytes length
@@ -121,11 +121,10 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
                 cOutBuf->data[0x0E] = 0x7F;
             } else /*if (ucPeerRSvIndex < (TOTAL_NR_OF_PORTS * 3 + 3))*/ { //nr_of_ports (1) * 3 register starting with the address 3
                 sv.writeSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex, ucPeerRSvValue); //save the new value
+ #if 0               
                 if ((ucPeerRSvIndex % 3) == 0) { // port type. If output, increase the total number of outputs
                    if(ucPeerRSvValue == 0x10){
-//                      bUpdateOutputs = true; //activate the outputs structure update 
-//                      outputs[outsNr].idx = ucPeerRSvIndex;
-                      outsNr++;
+                      uiOutsNr++;
                    }
                    if(ucPeerRSvIndex >= 100){ //servo configurations
                       uint8_t outnr = (ucPeerRSvIndex - FIRST_SERVO_REG) / 3; 
@@ -133,6 +132,7 @@ uint8_t processXferMess(lnMsg *LnRecMsg, lnMsg *cOutBuf){
                       outputs[outnr].servo.servoBytes[regnr] = ucPeerRSvValue;
                    }
                 }
+#endif                
                 cOutBuf->data[0x0B] = ucBoardAddrHi; 
                 ucTempData = sv.readSVStorage(SV_ADDR_USER_BASE + ucPeerRSvIndex);
                 if (ucTempData & 0x80) { //msb==1 => sent in PXCTL2
@@ -276,7 +276,7 @@ void calcSenAddr(uint8_t port){
        ucAddrHiSen[port] = (uiAddrSenFull[port] >> 7) & 0x7F;
        ucAddrLoSen[port] = uiAddrSenFull[port] & 0x7F;        
        ucSenType[port] = sv.readSVStorage(iSenAddr); //"sensor" type = in
-       setMessageHeader(port, port);
+       setVarLenMessageHeader(port, port);
 }
 
 void printSensorData(uint8_t port){
@@ -310,16 +310,22 @@ void lnDecodeMessage(lnMsg *LnPacket)
           // Rocrail compatible addressing
           for (uint8_t i = 0; i < NR_OF_RFID_PORTS; i++) {
             calcSenAddr(i);
+          }//for(uint8_t i
 
-#ifdef _SER_DEBUG
-            if (bSerialOk) {
-              printSensorData(i);
-            }
-#endif
-	  }//for(uint8_t i
+          updatePorts();
         } //if(LnPacket->data[4]               
       } //if(LnPacket->data[3]
     } //if(msgLen == 0x10)
+    
+    //decode the switching commands, maybe is for me
+    if((msgLen == 0x04) && (LnPacket->data[0] == OPC_SW_REQ)){ 
+       uint16_t uiServoAddr = ((LnPacket->data[2] & 0x0F) << 6) + (LnPacket->data[1] & 0x7F);
+       for(uint8_t i=0; i < 16; i++){
+           if((uiServoAddr == lnPorts[i].addrFull) && (lnPorts[i].type == OUT_PORT)){
+              
+           }
+       }
+    }
 }
 
 #if NR_OF_RFID_PORTS > 0
@@ -328,11 +334,13 @@ void lnDecodeMessage(lnMsg *LnPacket)
 /*
  * MFRC522 interrupt serving routines
  */
-void readCard1(uint8_t){
+void readCard1(void){
    bNewInt[0] = true;
+   digitalWrite(12, HIGH);
+
 }
 
-void readCard2(uint8_t){
+void readCard2(void){
    bNewInt[1] = true;
 }
 /*
@@ -352,8 +360,8 @@ void clearInt(MFRC522 mfrc522){
 }
 #endif
 
-void buildLnMessage(MFRC522 mfrc522, uint8_t uiRfidPort, uint8_t uiBufWrIdx){
-   setMessageHeader(uiRfidPort, uiBufWrIdx); //if the sensor address was changed, update the header
+void buildLnRfidMessage(MFRC522 mfrc522, uint8_t uiRfidPort, uint8_t uiBufWrIdx){
+   setVarLenMessageHeader(uiRfidPort, uiBufWrIdx); //if the sensor address was changed, update the header
 
    /****
    * Put the new data in buffer
@@ -389,5 +397,29 @@ void varInit(void){
    }  
 }
 
+
+void updatePorts(void){ //for not RFID ports
+   uint8_t uiRegAddr = 0;
+
+   for(uint8_t i = NR_OF_RFID_PORTS; i < TOTAL_NR_OF_PORTS; i++){
+       uiRegAddr = SV_ADDR_USER_BASE + 3 + 3*i;     //start eeprom address for each port     
+       lnPorts[i].addrFull = 256 * (sv.readSVStorage(uiRegAddr+2) & 0x0F) + 2 * sv.readSVStorage(uiRegAddr+1) +
+                    (sv.readSVStorage(uiRegAddr+2) >> 5) + 1;
+
+       lnPorts[i].addrH = (lnPorts[i].addrFull >> 7) & 0x7F;
+       lnPorts[i].addrL = lnPorts[i].addrFull & 0x7F;
+       if((sv.readSVStorage(uiRegAddr) & 0xFF) == 0x0F) {        
+          lnPorts[i].type = IN_PORT;
+          lnPorts[i].pin = lnPortList[i];
+          pinMode(lnPorts[i].pin, INPUT_PULLUP);
+          uiInsNr++;
+       }else{
+          lnPorts[i].type = OUT_PORT;
+          lnPorts[i].pin = lnPortList[i];
+          pinMode(lnPorts[i].pin, OUTPUT);
+          uiOutsNr++;
+       }
+   } 
+}
 #endif //#if NR_OF_RFID_PORTS > 0
 

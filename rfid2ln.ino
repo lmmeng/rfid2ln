@@ -74,8 +74,12 @@ uint8_t uiStartChkSen;
 
 boolean bSerialOk = false;
 
-__outType outputs[TOTAL_NR_OF_PORTS - NR_OF_RFID_PORTS]; /*maximum number of outputs*/
-uint8_t outsNr = 0;
+uint8_t lnPortList[TOTAL_NR_OF_PORTS - NR_OF_RFID_PORTS] = {1, 2};
+
+__portType lnPorts[TOTAL_NR_OF_PORTS - NR_OF_RFID_PORTS]; /*maximum number of no RFID ports*/
+uint8_t uiOutsNr;
+uint8_t uiInsNr;
+
 boolean bUpdateOutputs = false;
 
 #if NR_OF_RFID_PORTS > 0
@@ -96,7 +100,8 @@ boolean bUpdateOutputs = false;
   void activateRec(MFRC522 mfrc522);
   void clearInt(MFRC522 mfrc522);
 
-  readCardIntArray readCardInt[] = {readCard1, readCard2};
+  readCardIntArray readCardInt[] = {&readCard1, &readCard2};
+
   #endif
 #endif //#if NR_OF_RFID_PORTS > 0
 
@@ -179,17 +184,23 @@ void setup() {
       uiActReaders++;
       calcSenAddr(i);
 
+      mfrc522[i].PCD_SetAntennaGain(mfrc522[i].RxGain_48dB);
+
 #if USE_INTERRUPT
+     readCardInt[0] = (readCardIntArray)&readCard1;
+     readCardInt[1] = (readCardIntArray)&readCard2;
+     
       pinMode(mfrc522Irq[i], INPUT_PULLUP);
 
       /* 
        *  Allow the ... irq to be propagated to the IRQ pin
        *  For test purposes propagate the IdleIrq and loAlert
        */
+      regVal = 0xA0; //rx irq
       mfrc522[i].PCD_WriteRegister(mfrc522[i].ComIEnReg,regVal);
 
       delay(10);
-      attachInterrupt(digitalPinToInterrupt(mfrc522Irq[i]), readCard[i](), FALLING);
+      attachInterrupt(digitalPinToInterrupt(mfrc522Irq[i]), readCardInt[i](), FALLING);
       bNewInt[i] = false;
 #endif
 
@@ -205,6 +216,11 @@ void setup() {
     Serial.println(uiActReaders);
     Serial.println(F("************************************************"));
   }
+
+  pinMode(12,OUTPUT);
+  pinMode(13,OUTPUT);
+  digitalWrite(12, LOW);
+  digitalWrite(13, LOW);
 }
 
 
@@ -222,6 +238,11 @@ void loop() {
 #if USE_INTERRUPT
       if(bNewInt[uiRfidPort]){
         bNewInt[uiRfidPort] = false;
+            if (bSerialOk) {
+              Serial.print(F("Int: "));
+            }
+        digitalWrite(13, HIGH);
+        
 #else
       if(mfrc522[uiRfidPort].PICC_IsNewCardPresent()) {
 #endif
@@ -236,7 +257,7 @@ void loop() {
               Serial.println();
             }
 
-            buildLnMessage(mfrc522[uiRfidPort],uiRfidPort, uiBufWrIdx); 
+            buildLnRfidMessage(mfrc522[uiRfidPort],uiRfidPort, uiBufWrIdx); 
 
             if (uiBufWrIdx < LN_BUFF_LEN) {
               uiBufWrIdx++;
@@ -255,6 +276,8 @@ void loop() {
 #if USE_INTERRUPT
         clearInt(mfrc522[uiRfidPort]);
         activateRec(mfrc522[uiRfidPort]); //rearm the reading part of the mfrc522
+        digitalWrite(12, LOW);
+        digitalWrite(13, LOW);
 #endif          
       } else { //if newCard / newInt
         /* Reset the sensor indication in Rocrail => RFID can be used as a normal sensor*/
